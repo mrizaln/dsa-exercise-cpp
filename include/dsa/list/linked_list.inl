@@ -73,6 +73,7 @@ namespace dsa
         if (pos == 0) {
             node->m_next = std::move(m_head);
             m_head       = std::move(node);
+            m_tail       = m_head.get();
         } else if (pos == m_size) {
             m_tail->m_next = std::move(node);
             m_tail         = m_tail->m_next.get();
@@ -125,7 +126,7 @@ namespace dsa
             m_tail = m_head.get();
         } else {
             node->m_next = std::move(m_head);
-            m_head = std::move(node);
+            m_head       = std::move(node);
         }
 
         ++m_size;
@@ -163,7 +164,7 @@ namespace dsa
     }
 
     // TODO: make pop_back a constant time instead of linear to size
-    // NOTE: to achieve constant time, m_tail probably needs to be changed to point to 'before tail'. 
+    // NOTE: to achieve constant time, m_tail probably needs to be changed to point to 'before tail'.
     //       also change the name to reflect the behavior.
     template <LinkedListElement T>
     T LinkedList<T>::pop_back()
@@ -175,9 +176,9 @@ namespace dsa
         // one element
         if (m_head.get() == m_tail) {
             auto value = std::move(m_head->m_element);
-            m_head = nullptr;
-            m_tail = nullptr;
-            m_size = 0;
+            m_head     = nullptr;
+            m_tail     = nullptr;
+            m_size     = 0;
             return value;
         }
 
@@ -187,7 +188,7 @@ namespace dsa
         }
 
         auto node = std::exchange(prev->m_next, nullptr);
-        m_tail = prev;
+        m_tail    = prev;
         --m_size;
 
         return std::move(node->m_element);

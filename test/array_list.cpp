@@ -134,4 +134,56 @@ int main()
         expect(throws([&] { list.push_back(42); })) << "should throw when push to empty list";
         expect(throws([&] { list.pop_back(); })) << "should throw when pop from empty list";
     };
+
+    "insert should inserts value at specified position"_test = [] {
+        std::vector<NonTrivial>    values = { 42, 0, 1, 2, 3, 4, 5, 6, 7, 8 };
+        dsa::ArrayList<NonTrivial> list{ 20 };
+
+        // first insert
+        list.insert(0, 42);
+
+        expect(list.size() == 1_i);
+        expect(list.front().value() == 42_i);
+        expect(list.back().value() == 42_i);
+
+        expect(throws([&] { list.insert(2, -1); })) << "out of bound insert should throws";
+
+        for (auto i : rv::iota(0, 9)) {
+            list.insert(list.size(), i);
+        }
+        expect(list.size() == 10_i);
+        expect(rr::equal(list, values));
+
+        // insertion in the middle
+        list.pop_back();    // to reserve one space
+        list.insert(5, -1);
+
+        expect(rr::equal(list | rv::take(4), values | rv::take(4)));
+        expect(list[5] == -1_i);
+        expect(rr::equal(list | rv::drop(6) | rv::take(4), values | rv::drop(5) | rv::take(4)));
+    };
+
+    "remove should removes value at specified position"_test = [] {
+        std::vector<NonTrivial>    values = { 42, 0, 1, 2, 3, 4, 5, 6, 7, 8 };
+        dsa::ArrayList<NonTrivial> list{ 20 };
+        for (auto value : values) {
+            list.push_back(std::move(value));
+        }
+        expect(that % list.size() == values.size());
+
+        auto value = list.remove(5);
+        expect(that % value == values[5]);
+        expect(list.size() == 9_i);
+        expect(rr::equal(list | rv::take(5), values | rv::take(5)));
+        expect(rr::equal(list | rv::drop(5) | rv::take(4), values | rv::drop(6) | rv::take(4)));
+
+        list.clear();
+        list.push_back(42);
+
+        expect(throws([&] { list.remove(1); })) << "out of bound removal should throws";
+        expect(list.remove(0) == 42_i);
+        expect(list.size() == 0_i);
+
+        expect(throws([&] { list.remove(0); })) << "removing element of an empty list";
+    };
 }

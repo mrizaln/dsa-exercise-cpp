@@ -50,6 +50,10 @@ namespace dsa
             throw std::out_of_range{ "Position is out of bounds" };
         }
 
+        if (pos == m_size) {
+            return push_back(std::move(element));
+        }
+
         for (std::size_t i = m_size; i > pos; --i) {
             moveElement(i - 1, i);
         }
