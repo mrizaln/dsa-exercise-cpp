@@ -2,10 +2,7 @@
 #include <dsa/list.hpp>
 
 #include <boost/ut.hpp>
-#include <boost/ut.hpp>
 #include <fmt/core.h>
-#include <fmt/ranges.h>
-#include <fmt/std.h>
 
 #include <ranges>
 #include <concepts>
@@ -54,7 +51,7 @@ int main()
 
     "Stack should be able to be constructed with a backend"_test = [] {
         dsa::Stack<dsa::ArrayList, NonTrivial>        stack{ 10 };    // limited capacity
-        dsa::Stack<dsa::LinkedList, NonTrivial>       stack2;         // shouldn't be used
+        dsa::Stack<dsa::LinkedList, NonTrivial>       stack2;         // shouldn't be used; pop_back is O(n)
         dsa::Stack<dsa::DoublyLinkedList, NonTrivial> stack3;
     };
 
@@ -75,8 +72,25 @@ int main()
         expect(stack.empty()) << "stack should be empty after popping all elements";
     };
 
+    // NOTE: Stack with LinkedList backend is incredibly inefficient since its pop_back is linear time [O(n)]
     "Stack with LinkedList backend should be able to push and pop"_test = [] {
         dsa::Stack<dsa::LinkedList, NonTrivial> stack;
+
+        for (auto i : rv::iota(0, 10)) {
+            stack.push(i);
+        }
+
+        expect(stack.size() == 10_i);
+
+        for (auto i : rv::iota(0, 10) | rv::reverse) {
+            expect(that % stack.top() == i);    // just a view
+            expect(that % stack.pop() == i);
+        }
+        expect(stack.empty()) << "stack should be empty after popping all elements";
+    };
+
+    "Stack with DoublyLinkedList backend should be able to push and pop"_test = [] {
+        dsa::Stack<dsa::DoublyLinkedList, NonTrivial> stack;
 
         for (auto i : rv::iota(0, 10)) {
             stack.push(i);

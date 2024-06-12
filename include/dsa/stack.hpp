@@ -8,10 +8,10 @@ namespace dsa
     template <template <typename> typename C, typename T>
     concept StackCompatible = requires(C<T> c, const C<T> cc, T&& t) {
         { cc.back() } -> std::same_as<const T&>;
+        { cc.size() } -> std::same_as<std::size_t>;
         { c.back() } -> std::same_as<T&>;
         { c.push_back(std::move(t)) } -> std::same_as<T&>;
         { c.pop_back() } -> std::same_as<T>;
-        { c.size() } -> std::same_as<std::size_t>;
     };
 
     template <template <typename> typename C, typename T>
