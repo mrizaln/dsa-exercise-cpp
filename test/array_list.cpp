@@ -51,6 +51,15 @@ T random(T min, T max)
     }
 }
 
+template <typename T, std::ranges::range R>
+    requires std::convertible_to<std::ranges::range_value_t<R>, T>
+void populateList(dsa::ArrayList<T>& list, R&& range)
+{
+    for (auto value : range) {
+        list.push_back(std::move(value));
+    }
+}
+
 int main()
 {
     using namespace ut::operators;
@@ -185,5 +194,35 @@ int main()
         expect(list.size() == 0_i);
 
         expect(throws([&] { list.remove(0); })) << "removing element of an empty list";
+    };
+
+    "move should leave list into an empty state that is not usable"_test = [] {
+        dsa::ArrayList<NonTrivial> list{ 20 };
+        populateList(list, rv::iota(0, 10));
+
+        expect(list.size() == 10_i);
+        expect(rr::equal(list, rv::iota(0, 10)));
+
+        auto list2 = std::move(list);
+        expect(list.size() == 0_i);
+        expect(list.capacity() == 0_i);
+
+        expect(throws([&] { list.push_back(42); })) << "should throw when push to empty list";
+    };
+
+    "copy should copy each element exactly"_test = [] {
+        dsa::ArrayList<NonTrivial> list{ 20 };
+        populateList(list, rv::iota(0, 10));
+
+        expect(list.size() == 10_i);
+        expect(rr::equal(list, rv::iota(0, 10)));
+
+        auto list2 = list;
+        expect(list2.size() == 10_i);
+        expect(rr::equal(list2, list));
+
+        auto list3 = list2;
+        expect(list3.size() == 10_i);
+        expect(rr::equal(list3, list));
     };
 }
