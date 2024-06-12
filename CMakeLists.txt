@@ -34,5 +34,6 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
   enable_testing()
   make_test(array_list)
   make_test(linked_list)
+  make_test(doubly_linked_list)
 
 endif()
