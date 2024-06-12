@@ -25,10 +25,10 @@ namespace dsa
         ArrayList(std::size_t capacity);
 
         ArrayList(const ArrayList& other);
-        ArrayList& operator=(const ArrayList other);
+        ArrayList& operator=(const ArrayList& other);
 
-        ArrayList(ArrayList&& other) noexcept            = default;
-        ArrayList& operator=(ArrayList&& other) noexcept = default;
+        ArrayList(ArrayList&& other) noexcept;
+        ArrayList& operator=(ArrayList&& other) noexcept;
 
         void swap(ArrayList& other) noexcept;
         void clear() noexcept;

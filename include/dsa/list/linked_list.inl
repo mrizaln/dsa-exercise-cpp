@@ -26,18 +26,24 @@ namespace dsa
 
     template <LinkedListElement T>
     LinkedList<T>::LinkedList(const LinkedList& other)
-        : m_size{ other.m_size }
+        : m_size{ 0 }
     {
-        for (const auto& element : other) {
-            push_back(element);
+        for (auto element : other) {
+            push_back(std::move(element));
         }
     }
 
     template <LinkedListElement T>
-    LinkedList<T>& LinkedList<T>::operator=(LinkedList other)
+    LinkedList<T>& LinkedList<T>::operator=(const LinkedList& other)
     {
-        swap(other);
-        return *this;
+        if (this == &other) {
+            return *this;
+        }
+
+        clear();
+        for (auto element : other) {
+            push_back(std::move(element));
+        }
     }
 
     template <LinkedListElement T>
@@ -53,8 +59,7 @@ namespace dsa
     {
         // prevent stack overflow from recursive destruction of nodes
         for (auto current = std::move(m_head); current != nullptr;) {
-            // current.reset(current->m_next.release());    // alternative of below but explicit
-            current = std::move(current->m_next);
+            current.reset(current->m_next.release());
         }
         m_head = nullptr;
         m_tail = nullptr;
@@ -65,30 +70,27 @@ namespace dsa
     T& LinkedList<T>::insert(std::size_t pos, T&& element)
     {
         if (pos > m_size) {
-            throw std::out_of_range{ "Index out of bounds" };
+            throw std::out_of_range{ "Position out of bounds" };
+        }
+
+        if (pos == 0) {
+            return push_front(std::move(element));
+        } else if (pos == m_size) {
+            return push_back(std::move(element));
         }
 
         auto node = std::make_unique<Node>(std::move(element));
 
-        if (pos == 0) {
-            node->m_next = std::move(m_head);
-            m_head       = std::move(node);
-            m_tail       = m_head.get();
-        } else if (pos == m_size) {
-            m_tail->m_next = std::move(node);
-            m_tail         = m_tail->m_next.get();
-        } else {
-            auto* prev = m_head.get();
-            for (std::size_t i = 0; i < pos - 1; ++i) {
-                prev = prev->m_next.get();
-            }
-
-            node->m_next = std::move(prev->m_next);
-            prev->m_next = std::move(node);
+        auto* prev = m_head.get();
+        for (std::size_t i = 0; i < pos - 1; ++i) {
+            prev = prev->m_next.get();
         }
 
+        node->m_next = std::move(prev->m_next);
+        prev->m_next = std::move(node);
+
         ++m_size;
-        return node->m_element;
+        return prev->m_next->m_element;
     }
 
     template <LinkedListElement T>
@@ -99,21 +101,18 @@ namespace dsa
         }
 
         if (pos == 0) {
-            auto element = std::move(m_head->m_element);
-            m_head       = std::move(m_head->m_next);
-            --m_size;
-            return element;
-        } else {
-            auto* prev = m_head.get();
-            for (std::size_t i = 0; i < pos - 1; ++i) {
-                prev = prev->m_next.get();
-            }
-
-            auto element = std::move(prev->m_next->m_element);
-            prev->m_next = std::move(prev->m_next->m_next);
-            --m_size;
-            return element;
+            return pop_front();
         }
+
+        auto* prev = m_head.get();
+        for (std::size_t i = 0; i < pos - 1; ++i) {
+            prev = prev->m_next.get();
+        }
+
+        auto element = std::move(prev->m_next->m_element);
+        prev->m_next = std::move(prev->m_next->m_next);
+        --m_size;
+        return element;
     }
 
     template <LinkedListElement T>

@@ -37,7 +37,7 @@ namespace dsa
         LinkedList& operator=(LinkedList&& other) noexcept;
 
         LinkedList(const LinkedList& other);
-        LinkedList& operator=(LinkedList other);
+        LinkedList& operator=(const LinkedList& other);
 
         void swap(LinkedList& other) noexcept;
         void clear() noexcept;

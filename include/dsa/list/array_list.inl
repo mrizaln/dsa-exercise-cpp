@@ -18,9 +18,40 @@ namespace dsa
     }
 
     template <ArrayElement T>
-    ArrayList<T>& ArrayList<T>::operator=(const ArrayList other)
+    ArrayList<T>& ArrayList<T>::operator=(const ArrayList& other)
     {
-        swap(other);
+        if (this == &other) {
+            return *this;
+        }
+
+        clear();
+        m_capacity = other.m_capacity;
+        m_size     = other.m_size;
+        std::copy(other.m_data.get(), other.m_data.get() + m_size, m_data.get());
+
+        return *this;
+    }
+
+    template <ArrayElement T>
+    ArrayList<T>::ArrayList(ArrayList&& other) noexcept
+        : m_capacity{ std::exchange(other.m_capacity, 0) }
+        , m_size{ std::exchange(other.m_size, 0) }
+        , m_data{ std::exchange(other.m_data, nullptr) }
+    {
+    }
+
+    template <ArrayElement T>
+    ArrayList<T>& ArrayList<T>::operator=(ArrayList&& other) noexcept
+    {
+        if (this == &other) {
+            return *this;
+        }
+
+        clear();
+        m_capacity = std::exchange(other.m_capacity, 0);
+        m_size     = std::exchange(other.m_size, 0);
+        m_data     = std::exchange(other.m_data, nullptr);
+
         return *this;
     }
 
