@@ -49,13 +49,15 @@ namespace dsa
         T& push_front(T&& element);
         T& push_back(T&& element);
         T  pop_front();
-        T  pop_back();
+
+        // NOTE: pop_back is a linear operation unlike the other operations, use with caution
+        T pop_back();
 
         // UB when m_head or m_tail nullptr
-        T& front() noexcept { return m_head->m_element; }
-        T& back() noexcept { return m_tail->m_element; }
-        T& front() const noexcept { return m_head->m_element; }
-        T& back() const noexcept { return m_tail->m_element; }
+        T&       front() noexcept { return m_head->m_element; }
+        T&       back() noexcept { return m_tail->m_element; }
+        const T& front() const noexcept { return m_head->m_element; }
+        const T& back() const noexcept { return m_tail->m_element; }
 
         std::size_t size() const noexcept { return m_size; }
 

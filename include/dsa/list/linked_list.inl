@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdexcept>
 #include <utility>
 
 namespace dsa
@@ -162,9 +163,6 @@ namespace dsa
         return element;
     }
 
-    // TODO: make pop_back a constant time instead of linear to size
-    // NOTE: to achieve constant time, m_tail probably needs to be changed to point to 'before tail'.
-    //       also change the name to reflect the behavior.
     template <LinkedListElement T>
     T LinkedList<T>::pop_back()
     {

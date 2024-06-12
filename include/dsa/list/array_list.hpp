@@ -50,10 +50,10 @@ namespace dsa
         const T& operator[](std::size_t pos) const noexcept { return m_data[pos]; }
 
         // UB when m_data is nullptr or m_size is 0
-        T& front() noexcept { return m_data[0]; }
-        T& back() noexcept { return m_data[m_size - 1]; }
-        T& front() const noexcept { return m_data[0]; }
-        T& back() const noexcept { return m_data[m_size - 1]; }
+        T&       front() noexcept { return m_data[0]; }
+        T&       back() noexcept { return m_data[m_size - 1]; }
+        const T& front() const noexcept { return m_data[0]; }
+        const T& back() const noexcept { return m_data[m_size - 1]; }
 
         T*             data() noexcept { return m_data.get(); }
         Iterator       begin() noexcept { return m_data.get(); }
