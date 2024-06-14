@@ -1,5 +1,6 @@
 #include <dsa/stack.hpp>
 #include <dsa/list.hpp>
+#include <dsa/circular_buffer.hpp>
 
 #include <boost/ut.hpp>
 #include <fmt/core.h>
@@ -47,6 +48,10 @@ int main()
         static_assert(dsa::StackCompatible<dsa::ArrayList, NonTrivial>);
         static_assert(dsa::StackCompatible<dsa::LinkedList, NonTrivial>);
         static_assert(dsa::StackCompatible<dsa::DoublyLinkedList, NonTrivial>);
+    };
+
+    "CircularBuffer should not be able to be used as Stack backend"_test = [] {
+        static_assert(not dsa::StackCompatible<dsa::CircularBuffer, NonTrivial>);
     };
 
     "Stack should be able to be constructed with a backend"_test = [] {

@@ -1,5 +1,6 @@
 #include <dsa/queue.hpp>
 #include <dsa/list.hpp>
+#include <dsa/circular_buffer.hpp>
 
 #include <boost/ut.hpp>
 #include <fmt/core.h>
@@ -46,6 +47,7 @@ int main()
     "LinkedList and DoublyLinkedList should be able to be used as Queue backend"_test = [] {
         static_assert(dsa::QueueCompatible<dsa::LinkedList, NonTrivial>);
         static_assert(dsa::QueueCompatible<dsa::DoublyLinkedList, NonTrivial>);
+        static_assert(dsa::QueueCompatible<dsa::CircularBuffer, NonTrivial>);
     };
 
     "ArrayList should not be able to be used as Queue backend"_test = [] {
@@ -55,6 +57,12 @@ int main()
     "Queue should be able to be constructed with a backend"_test = [] {
         dsa::Queue<dsa::LinkedList, NonTrivial>       queue;
         dsa::Queue<dsa::DoublyLinkedList, NonTrivial> queue2;
+
+        dsa::BufferPolicy policy{
+            .m_capacity = dsa::BufferCapacityPolicy::FixedCapacity,
+            .m_store    = dsa::BufferStorePolicy::ReplaceOldest,
+        };
+        dsa::Queue<dsa::CircularBuffer, NonTrivial> queue3{ 10, policy };
     };
 
     "Queue with LinkedList backend should be able to push and pop"_test = [] {
@@ -77,6 +85,28 @@ int main()
 
     "Queue with DoublyLinkedList backend should be able to push and pop"_test = [] {
         dsa::Queue<dsa::DoublyLinkedList, NonTrivial> queue;
+
+        for (auto i : rv::iota(0, 10)) {
+            auto v = queue.push(i);
+            expect(that % v == i);
+            expect(that % queue.back() == i);
+        }
+
+        expect(queue.size() == 10_i);
+
+        for (auto i : rv::iota(0, 10)) {
+            expect(that % queue.front() == i);
+            expect(that % queue.pop() == i);
+        }
+        expect(queue.empty());
+    };
+
+    "Queue with CircularBuffer backend should be able to push and pop"_test = [] {
+        dsa::BufferPolicy policy{
+            .m_capacity = dsa::BufferCapacityPolicy::FixedCapacity,
+            .m_store    = dsa::BufferStorePolicy::ReplaceOldest,
+        };
+        dsa::Queue<dsa::CircularBuffer, NonTrivial> queue{ 10, policy };
 
         for (auto i : rv::iota(0, 10)) {
             auto v = queue.push(i);
