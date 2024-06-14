@@ -37,5 +37,6 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
   make_test(doubly_linked_list)
   make_test(stack)
   make_test(queue)
+  make_test(circular_buffer)
 
 endif()
