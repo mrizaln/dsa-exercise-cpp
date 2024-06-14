@@ -57,7 +57,7 @@ namespace dsa
             : m_buffer{ std::make_unique<T[]>(capacity) }
             , m_capacity{ capacity }
             , m_head{ 0 }
-            , m_tail{ 0 }
+            , m_tail{ capacity == 0 ? npos : 0 }
             , m_policy{ policy }
         {
         }
