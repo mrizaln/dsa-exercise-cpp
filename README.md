@@ -1,6 +1,8 @@
 # dsa-exercise-cpp
 
-My attempt at implementing various Data Structure and Algorithms as an exercise. The reference I used for this exercise is [Data Structures and Algorithm Analysis in C++ 3rd Edition by Clifford A Shaffer](https://people.cs.vt.edu/shaffer/Book/). The code written here is not an exact copy-and-paste from the book, but adapted to current best practices in C++ and uses modern C++ features including but not limited to STL `iterator` support (also `range` support if possible).
+My attempt at implementing various Data Structure and Algorithms as an exercise. The code written here is adapted to current best practices in C++ and uses modern C++ features including but not limited to STL `iterator` support (also `range` support if possible).
+
+> see [reference](./reference) for list of references I used for this exercise
 
 ```cpp
 namespace rv = std::views;
@@ -14,8 +16,6 @@ for (auto& value : list | rv::reverse | rv::take(10)) {
     // process the value ...
 }
 ```
-
-Thus, this exercise also aims to hone my ability in creating an STL-compliant containers in case I needed to create one in the future.
 
 ## TODO
 
