@@ -1,5 +1,7 @@
 #pragma once
 
+// NOTE: Queue implementation based on reference 1
+
 #include <concepts>
 #include <utility>
 

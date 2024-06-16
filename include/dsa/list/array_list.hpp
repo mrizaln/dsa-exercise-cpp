@@ -1,5 +1,7 @@
 #pragma once
 
+// NOTE: ArrayList implementation based on reference 1
+
 #include <concepts>
 #include <cstddef>
 #include <memory>

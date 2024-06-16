@@ -1,5 +1,7 @@
 #pragma once
 
+// NOTE: CircularArray implementation based on reference 1 and reference 2 (ArrayQueue)
+
 #include <algorithm>
 #include <concepts>
 #include <limits>
@@ -36,6 +38,8 @@ namespace dsa
         BufferStorePolicy    m_store    = BufferStorePolicy::ReplaceOldest;
     };
 
+    // TODO: add the ability to push to/pop from front and add bidirectional_iterator support (it would be
+    //       better if it would also support random_access_iterator)
     template <CircularBufferElement T>
     class CircularBuffer
     {

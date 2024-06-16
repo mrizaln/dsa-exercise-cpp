@@ -1,5 +1,7 @@
 #pragma once
 
+// NOTE: DualArrayDeque implementation based on reference 2
+
 #include "list/array_list.hpp"
 #include "stack.hpp"
 
@@ -10,6 +12,7 @@ namespace dsa
     template <typename T>
     concept DequeElement = std::default_initializable<T> and (std::movable<T> or std::copyable<T>);
 
+    // TODO: split implementation into separate file and add iterator support (bidirectional_iterator?)
     template <DequeElement T>
     class Deque
     {
