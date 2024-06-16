@@ -24,6 +24,9 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     target_compile_features(${NAME} PRIVATE cxx_std_20)
     set_target_properties(${NAME} PROPERTIES CXX_EXTENSIONS OFF)
 
+    target_compile_options(${NAME} PRIVATE -fsanitize=address,leak,undefined)
+    target_link_options(${NAME} PRIVATE -fsanitize=address,leak,undefined)
+
     add_test(NAME ${NAME} COMMAND $<TARGET_FILE:${NAME}>)
     add_custom_command(
       TARGET ${NAME}
@@ -38,5 +41,6 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
   make_test(stack)
   make_test(queue)
   make_test(circular_buffer)
+  make_test(deque)
 
 endif()
