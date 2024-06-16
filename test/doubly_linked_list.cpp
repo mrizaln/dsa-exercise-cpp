@@ -177,7 +177,6 @@ int main()
         expect(throws([&] { list.pop_front(); })) << "should throw when pop from empty list";
     };
 
-    // TODO: test insert using approach from head and approach from tail
     "insert should inserts value at specified position"_test = [] {
         std::vector<NonTrivial>           values = { 42, 0, 1, 2, 3, 4, 5, 6, 7, 8 };
         dsa::DoublyLinkedList<NonTrivial> list;
@@ -235,7 +234,6 @@ int main()
         expect(rr::equal(subrange(list, 8, 11), subrange(values, 7, 10)));
     };
 
-    // TODO: test remove using approach from head and approach from tail
     "remove should removes value at specified position"_test = [] {
         std::vector<NonTrivial>           values = { 42, 0, 1, 2, 3, 4, 5, 6, 7, 8 };
         dsa::DoublyLinkedList<NonTrivial> list;

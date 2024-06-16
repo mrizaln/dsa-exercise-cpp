@@ -40,6 +40,9 @@ namespace dsa
         T&          back() { return m_container.back(); }
         const T&    back() const { return m_container.back(); }
 
+        Container&       underlying() { return m_container; }
+        const Container& underlying() const { return m_container; }
+
     private:
         Container m_container;
     };
