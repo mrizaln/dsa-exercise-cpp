@@ -12,7 +12,6 @@ namespace dsa
     template <typename T>
     concept DequeElement = std::default_initializable<T> and (std::movable<T> or std::copyable<T>);
 
-    // TODO: split implementation into separate file and add iterator support (bidirectional_iterator?)
     template <DequeElement T>
     class Deque
     {
