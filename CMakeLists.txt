@@ -7,7 +7,7 @@ project(
 
 add_library(dsa INTERFACE)
 target_include_directories(dsa INTERFACE include)
-target_compile_features(dsa INTERFACE cxx_std_20)
+target_compile_features(dsa INTERFACE cxx_std_23)
 set_target_properties(dsa PROPERTIES CXX_EXTENSIONS OFF)
 
 # build tests only when this project not included as subdirectory
@@ -21,7 +21,7 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
   function(make_test NAME)
     add_executable(${NAME} test/${NAME}.cpp)
     target_link_libraries(${NAME} PRIVATE dsa fmt::fmt Boost::ut)
-    target_compile_features(${NAME} PRIVATE cxx_std_20)
+    target_compile_features(${NAME} PRIVATE cxx_std_23)
     set_target_properties(${NAME} PROPERTIES CXX_EXTENSIONS OFF)
 
     target_compile_options(${NAME} PRIVATE -fsanitize=address,leak,undefined)
