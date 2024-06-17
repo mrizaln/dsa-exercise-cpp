@@ -2,16 +2,20 @@
 
 // NOTE: ArrayList implementation based on reference 1
 
+#include <algorithm>
 #include <concepts>
 #include <cstddef>
-#include <memory>
 #include <utility>
+
+#include "raw_buffer.hpp"
 
 namespace dsa
 {
     template <typename T>
-    concept ArrayElement = std::default_initializable<T> and (std::movable<T> or std::copyable<T>);
+    concept ArrayElement = std::movable<T> or std::copyable<T>;
 
+    // TODO: make the array grow by itself when the element is full
+    // TODO: delegate the current constructor to default initializing fixed amount of elements at construction
     template <ArrayElement T>
     class ArrayList
     {
@@ -21,16 +25,18 @@ namespace dsa
 
         using value_type = Element;    // STL compliance
 
-        ArrayList()  = default;
-        ~ArrayList() = default;
+        ArrayList() = default;
+        ~ArrayList() { clear(); }
 
-        ArrayList(std::size_t capacity);
+        explicit ArrayList(std::size_t capacity);
 
-        ArrayList(const ArrayList& other);
-        ArrayList& operator=(const ArrayList& other);
+        ArrayList(ArrayList&& other);
+        ArrayList& operator=(ArrayList&& other);
 
-        ArrayList(ArrayList&& other) noexcept;
-        ArrayList& operator=(ArrayList&& other) noexcept;
+        ArrayList(const ArrayList& other)
+            requires std::copyable<T>;
+        ArrayList& operator=(const ArrayList& other)
+            requires std::copyable<T>;
 
         void swap(ArrayList& other) noexcept;
         void clear() noexcept;
@@ -38,47 +44,40 @@ namespace dsa
         T& insert(std::size_t pos, T&& element);
         T  remove(std::size_t pos);
 
-        // snake-case to be able to use std functions like std::back_inserter
-        T& push_back(T&& element);
-        T  pop_back();
+        T& push_back(T&& value) { return insert(m_size, std::move(value)); }
+        T  pop_back() { return remove(m_size - 1); }
 
-        T&       at(std::size_t pos);
-        const T& at(std::size_t pos) const;
+        auto&& at(this auto&& self, std::size_t pos)
+        {
+            if (pos >= self.m_size) {
+                throw std::out_of_range{ "Cannot access element at position greater than or equal to size" };
+            }
+            return self.m_buffer.at(pos);
+        }
+
+        auto&& front(this auto&& self) { return self.at(0); }
+        auto&& back(this auto&& self) { return self.at(self.m_size - 1); }
+
+        auto* data(this auto&& self) { return self.m_buffer.data(); }
+
+        auto* begin(this auto&& self) { return self.m_buffer.data(); }
+        auto* end(this auto&& self) { return self.m_buffer.data() + self.m_size; }
 
         std::size_t size() const noexcept { return m_size; }
-        std::size_t capacity() const noexcept { return m_capacity; }
-
-        T&       operator[](std::size_t pos) noexcept { return m_data[pos]; }
-        const T& operator[](std::size_t pos) const noexcept { return m_data[pos]; }
-
-        // UB when m_data is nullptr or m_size is 0
-        T&       front() noexcept { return m_data[0]; }
-        T&       back() noexcept { return m_data[m_size - 1]; }
-        const T& front() const noexcept { return m_data[0]; }
-        const T& back() const noexcept { return m_data[m_size - 1]; }
-
-        T*             data() noexcept { return m_data.get(); }
-        Iterator       begin() noexcept { return m_data.get(); }
-        Iterator       end() noexcept { return m_data.get() + m_size; }
-        const Iterator begin() const noexcept { return m_data.get(); }
-        const Iterator end() const noexcept { return m_data.get() + m_size; }
-        const Iterator cbegin() const noexcept { return m_data.get(); }
-        const Iterator cend() const noexcept { return m_data.get() + m_size; }
+        std::size_t capacity() const noexcept { return m_buffer.size(); }
 
     private:
-        std::size_t m_capacity = 0;
-        std::size_t m_size     = 0;
-
-        std::unique_ptr<T[]> m_data = nullptr;
-
-        void moveElement(std::size_t from, std::size_t to)
+        struct ShiftResult
         {
-            if constexpr (std::movable<T>) {
-                m_data[to] = std::move(m_data[from]);
-            } else {
-                m_data[to] = m_data[from];
-            }
-        }
+            std::size_t begin;
+            std::size_t count;
+        };
+
+        RawBuffer<T> m_buffer = {};
+        std::size_t  m_size   = 0;
+
+        ShiftResult shiftRight(std::size_t begin, std::size_t count);
+        void        destroyAndShiftLeft(std::size_t begin, std::size_t end);
     };
 }
 
@@ -90,53 +89,53 @@ namespace dsa
 {
     template <ArrayElement T>
     ArrayList<T>::ArrayList(std::size_t capacity)
-        : m_capacity{ capacity }
-        , m_data{ std::make_unique<T[]>(capacity) }
+        : m_buffer{ capacity }
     {
+    }
+
+    template <ArrayElement T>
+    ArrayList<T>::ArrayList(ArrayList&& other)
+        : m_buffer{ std::exchange(other.m_buffer, {}) }
+        , m_size{ std::exchange(other.m_size, 0) }
+    {
+    }
+
+    template <ArrayElement T>
+    ArrayList<T>& ArrayList<T>::operator=(ArrayList&& other)
+    {
+        if (this == &other) {
+            return *this;
+        }
+
+        m_buffer = std::exchange(other.m_buffer, {});
+        m_size   = std::exchange(other.m_size, 0);
     }
 
     template <ArrayElement T>
     ArrayList<T>::ArrayList(const ArrayList& other)
-        : ArrayList{ other.m_capacity }
+        requires std::copyable<T>
+        : m_buffer{ other.m_buffer.size() }
+        , m_size{ other.m_size }
     {
-        m_size = other.m_size;
-        std::copy(other.m_data.get(), other.m_data.get() + m_size, m_data.get());
+        for (std::size_t i = 0; i < m_size; ++i) {
+            m_buffer.construct(i, other.m_buffer.at(i));
+        }
     }
 
     template <ArrayElement T>
     ArrayList<T>& ArrayList<T>::operator=(const ArrayList& other)
+        requires std::copyable<T>
     {
         if (this == &other) {
             return *this;
         }
 
-        clear();
-        m_capacity = other.m_capacity;
-        m_size     = other.m_size;
-        std::copy(other.m_data.get(), other.m_data.get() + m_size, m_data.get());
+        m_buffer = RawBuffer<T>{ other.m_buffer.size() };    // destroy the old buffer and create a new one
+        m_size   = other.m_size;
 
-        return *this;
-    }
-
-    template <ArrayElement T>
-    ArrayList<T>::ArrayList(ArrayList&& other) noexcept
-        : m_capacity{ std::exchange(other.m_capacity, 0) }
-        , m_size{ std::exchange(other.m_size, 0) }
-        , m_data{ std::exchange(other.m_data, nullptr) }
-    {
-    }
-
-    template <ArrayElement T>
-    ArrayList<T>& ArrayList<T>::operator=(ArrayList&& other) noexcept
-    {
-        if (this == &other) {
-            return *this;
+        for (std::size_t i = 0; i < m_size; ++i) {
+            m_buffer.construct(i, other.m_buffer.at(i));
         }
-
-        clear();
-        m_capacity = std::exchange(other.m_capacity, 0);
-        m_size     = std::exchange(other.m_size, 0);
-        m_data     = std::exchange(other.m_data, nullptr);
 
         return *this;
     }
@@ -144,105 +143,113 @@ namespace dsa
     template <ArrayElement T>
     void ArrayList<T>::swap(ArrayList& other) noexcept
     {
-        std::swap(m_capacity, other.m_capacity);
+        std::swap(m_buffer, other.m_buffer);
         std::swap(m_size, other.m_size);
-        std::swap(m_data, other.m_data);
     }
 
     template <ArrayElement T>
     void ArrayList<T>::clear() noexcept
     {
-        m_data = std::make_unique<T[]>(m_capacity);
+        for (std::size_t i = 0; i < m_size; ++i) {
+            m_buffer.destroy(i);
+        }
         m_size = 0;
-    };
+    }
 
     template <ArrayElement T>
     T& ArrayList<T>::insert(std::size_t pos, T&& element)
     {
-        if (m_size == m_capacity) {
-            throw std::out_of_range{ "List is full" };
-        }
-
         if (pos > m_size) {
-            throw std::out_of_range{ "Position is out of bounds" };
+            throw std::out_of_range{
+                std::format("Cannot insert at position greater than size ({} > {})", pos, m_size)
+            };
         }
 
-        if (pos == m_size) {
-            return push_back(std::move(element));
+        if (m_size == capacity()) {
+            throw std::out_of_range{
+                std::format("Cannot insert, not enough capacity ({} > {})", m_size, capacity())
+            };
         }
 
-        for (std::size_t i = m_size; i > pos; --i) {
-            moveElement(i - 1, i);
+        if (pos < m_size) {
+            auto [begin, _] = shiftRight(pos, 1);
+            ++m_size;
+            return m_buffer.at(begin) = std::move(element);
+        } else {
+            ++m_size;
+            return m_buffer.construct(pos, std::move(element));
         }
-
-        ++m_size;
-        return m_data[pos] = std::move(element);
-    }
-
-    template <ArrayElement T>
-    T& ArrayList<T>::push_back(T&& element)
-    {
-        if (m_size == m_capacity) {
-            throw std::out_of_range{ "List is full" };
-        }
-
-        return m_data[m_size++] = std::move(element);
     }
 
     template <ArrayElement T>
     T ArrayList<T>::remove(std::size_t pos)
     {
-        if (m_size == 0) {
-            throw std::out_of_range{ "List is empty" };
-        }
-
         if (pos >= m_size) {
-            throw std::out_of_range{ "Position is out of bounds" };
+            throw std::out_of_range{ "Cannot remove at position greater than or equal to size" };
         }
 
-        T removed = [&] {
-            if constexpr (std::movable<T>) {
-                return std::move(m_data[pos]);
-            } else {
-                return m_data[pos];
-            }
-        }();
-
-        for (std::size_t i = pos; i < m_size - 1; ++i) {
-            moveElement(i + 1, i);
-        }
-
-        m_size--;
-        return removed;
+        auto value = std::move(m_buffer.at(pos));
+        destroyAndShiftLeft(pos, pos + 1);
+        --m_size;
+        return value;
     }
 
+    // the elements between [begin, begin + count) will be shifted to the right by count positions.
+    // the gap then returned and in a moved-from state ready to be moved-to (moved assignment).
     template <ArrayElement T>
-    T ArrayList<T>::pop_back()
+    ArrayList<T>::ShiftResult ArrayList<T>::shiftRight(std::size_t begin, std::size_t count)
     {
-        if (m_size == 0) {
-            throw std::out_of_range{ "List is empty" };
+        assert(count > 0 && "Cannot shift right by 0");
+
+        if (begin > m_size) {
+            throw std::out_of_range{ "Cannot shift right at position greater than size" };
         }
 
-        return m_data[--m_size];
+        if (m_size + count > capacity()) {
+            throw std::out_of_range{ "Cannot shift right, not enough capacity" };
+        }
+
+        auto placementEnd = m_size + count;
+
+        // placement new-ed elements
+        for (auto offset = placementEnd - 1; offset >= placementEnd - count; --offset) {
+            m_buffer.construct(offset, std::move(m_buffer.at(offset - count)));
+        }
+
+        // the rest of the elements
+        auto movedCount = (m_size - begin) - count;
+        std::move_backward(
+            m_buffer.data() + begin,
+            m_buffer.data() + begin + movedCount,
+            m_buffer.data() + placementEnd - count
+        );
+
+        return { begin, count };
     }
 
+    // the elements between [begin, end) will be destroyed.
+    // the rest of the elements then will be shifted to the left filling the gap.
     template <ArrayElement T>
-    T& ArrayList<T>::at(std::size_t pos)
+    void ArrayList<T>::destroyAndShiftLeft(std::size_t begin, std::size_t end)
     {
-        if (pos >= m_size) {
-            throw std::out_of_range{ "Position is out of bounds" };
+        assert(begin < end && "Begin pointer must be less than end pointer");
+
+        if (end > m_size) {
+            throw std::out_of_range{ "Cannot destroy and shift left at position greater than size" };
         }
 
-        return m_data[pos];
-    }
+        // instead of directly destroying the [begin, end) elements, we will reassign the elements from
+        // [end, m_size) to [begin, m_size - (end - begin)) and then destroy the rest of the elements.
 
-    template <ArrayElement T>
-    const T& ArrayList<T>::at(std::size_t pos) const
-    {
-        if (pos >= m_size) {
-            throw std::out_of_range{ "Position is out of bounds" };
+        // move the elements to the left
+        auto movedBegin = end;
+        auto movedEnd   = m_size;
+
+        std::move(m_buffer.data() + movedBegin, m_buffer.data() + movedEnd, m_buffer.data() + begin);
+
+        // remove the rest of the elements
+        for (auto offset = m_size - (end - begin); offset < m_size; ++offset) {
+            m_buffer.destroy(offset);
         }
-
-        return m_data[pos];
-    }
+    };
 }

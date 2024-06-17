@@ -173,9 +173,9 @@ namespace dsa
             auto& back  = m_back.underlying();
 
             if (pos < front.size()) {
-                return std::move(front[front.size() - pos - 1]);
+                return std::move(front.at(front.size() - pos - 1));
             } else {
-                return std::move(back[pos - front.size()]);
+                return std::move(back.at(pos - front.size()));
             }
         }
 

@@ -18,7 +18,7 @@ class NonTrivial
 {
 public:
     // clang-format off
-    NonTrivial() = default;
+    NonTrivial() = delete;      // deleted default constructor
     NonTrivial(int value) : m_value(value) { }
 
     NonTrivial(const NonTrivial& other)     : m_value(other.m_value) { }
@@ -168,7 +168,7 @@ int main()
         list.insert(5, -1);
 
         expect(rr::equal(list | rv::take(4), values | rv::take(4)));
-        expect(list[5] == -1_i);
+        expect(list.at(5) == -1_i);
         expect(rr::equal(list | rv::drop(6) | rv::take(4), values | rv::drop(5) | rv::take(4)));
     };
 
