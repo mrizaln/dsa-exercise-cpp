@@ -1,6 +1,8 @@
 #include <dsa/queue.hpp>
-#include <dsa/list.hpp>
 #include <dsa/circular_buffer.hpp>
+#include <dsa/array_list.hpp>
+#include <dsa/linked_list.hpp>
+#include <dsa/doubly_linked_list.hpp>
 
 #include <boost/ut.hpp>
 #include <fmt/core.h>

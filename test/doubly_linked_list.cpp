@@ -1,4 +1,4 @@
-#include <dsa/list/doubly_linked_list.hpp>
+#include <dsa/doubly_linked_list.hpp>
 
 #include <boost/ut.hpp>
 #include <fmt/core.h>

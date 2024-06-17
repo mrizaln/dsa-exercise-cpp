@@ -1,4 +1,4 @@
-#include <dsa/list/array_list.hpp>
+#include <dsa/array_list.hpp>
 
 #include <boost/ut.hpp>
 #include <fmt/core.h>

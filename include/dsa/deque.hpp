@@ -2,7 +2,7 @@
 
 // NOTE: DualArrayDeque implementation based on reference 2
 
-#include "list/array_list.hpp"
+#include "array_list.hpp"
 #include "stack.hpp"
 
 #include <concepts>
