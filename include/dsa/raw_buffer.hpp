@@ -82,22 +82,20 @@ namespace dsa
             return *std::construct_at(m_data + offset, std::forward<Ts>(args)...);
         }
 
-        T destroy(std::size_t offset) noexcept
+        void destroy(std::size_t offset) noexcept
         {
 #ifndef NDEBUG
             assert(m_constructed[offset] && "Element not constructed");
             m_constructed[offset] = false;
 #endif
-            T element = std::move(m_data[offset]);
-            std::move(m_data + offset + 1, m_data + m_size, m_data + offset);
-            std::destroy_at(m_data + m_size - 1);
-            return element;
+            std::destroy_at(m_data + offset);
         }
 
         T*       data() noexcept { return m_data; }
         const T* data() const noexcept { return m_data; }
 
-        T&       at(std::size_t pos) noexcept { return m_data[pos]; }
+        T&       at(std::size_t pos) & noexcept { return m_data[pos]; }
+        T&&      at(std::size_t pos) && noexcept { return std::move(m_data[pos]); }
         const T& at(std::size_t pos) const noexcept { return m_data[pos]; }
 
         std::size_t size() const noexcept { return m_size; }
