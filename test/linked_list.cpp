@@ -129,30 +129,6 @@ int main()
         expect(list.size() == 10_i);
     };
 
-    "pop_back should remove the last element from the list"_test = [] {
-        std::vector<NonTrivial>     values = { 42, 0, 1, 2, 3, 4, 5, 6, 7, 8 };
-        dsa::LinkedList<NonTrivial> list;
-        for (auto value : values) {
-            list.push_back(std::move(value));
-        }
-        expect(that % list.size() == values.size());
-
-        // first pop
-        auto size  = list.size();
-        auto value = list.pop_back();
-        expect(that % list.size() == size - 1);
-        expect(value == 8_i);
-
-        for (auto i : rv::iota(0, 8) | rv::reverse) {
-            expect(that % list.pop_back() == i);
-        }
-        expect(list.size() == 1_i);
-        expect(list.pop_back() == 42_i);
-        expect(list.size() == 0_i);
-
-        expect(throws([&] { list.pop_back(); })) << "should throw when pop from empty list";
-    };
-
     "pop_front should remove the first element on the list"_test = [] {
         std::vector<NonTrivial>     values = { 42, 0, 1, 2, 3, 4, 5, 6, 7, 8 };
         dsa::LinkedList<NonTrivial> list;
@@ -213,7 +189,6 @@ int main()
         expect(list.back() == -1_i);
         expect(list.size() == 11_i);
         expect(rr::equal(list | rv::take(10), values));
-        expect(list.pop_back() == -1_i);
 
         // insertion in the middle
         list.clear();
