@@ -38,8 +38,10 @@ namespace dsa
         LinkedList(LinkedList&& other) noexcept;
         LinkedList& operator=(LinkedList&& other) noexcept;
 
-        LinkedList(const LinkedList& other);
-        LinkedList& operator=(const LinkedList& other);
+        LinkedList(const LinkedList& other)
+            requires std::copyable<T>;
+        LinkedList& operator=(const LinkedList& other)
+            requires std::copyable<T>;
 
         void swap(LinkedList& other) noexcept;
         void clear() noexcept;
@@ -105,6 +107,7 @@ namespace dsa
 
     template <LinkedListElement T>
     LinkedList<T>::LinkedList(const LinkedList& other)
+        requires std::copyable<T>
         : m_size{ 0 }
     {
         for (auto element : other) {
@@ -114,6 +117,7 @@ namespace dsa
 
     template <LinkedListElement T>
     LinkedList<T>& LinkedList<T>::operator=(const LinkedList& other)
+        requires std::copyable<T>
     {
         if (this == &other) {
             return *this;

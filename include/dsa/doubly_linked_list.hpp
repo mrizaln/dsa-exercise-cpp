@@ -230,7 +230,7 @@ namespace dsa
             prev->m_next            = std::move(next);
 
             --m_size;
-            return element;
+            return std::move(element);    // NRVO not working?
         }
         // approach from tail
         else {
@@ -245,7 +245,7 @@ namespace dsa
             prev->m_next            = std::move(next);
 
             --m_size;
-            return element;
+            return std::move(element);    // NRVO not working?
         }
     }
 

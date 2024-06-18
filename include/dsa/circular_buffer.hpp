@@ -40,6 +40,7 @@ namespace dsa
 
     // TODO: add the ability to push to/pop from front and add bidirectional_iterator support (it would be
     //       better if it would also support random_access_iterator)
+    // TODO: relaxed the std::default_initializable constraint: use RawBuffer
     template <CircularBufferElement T>
     class CircularBuffer
     {
