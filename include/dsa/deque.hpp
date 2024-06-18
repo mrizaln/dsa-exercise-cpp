@@ -61,28 +61,14 @@ namespace dsa
 
         T& push_back(T&& value)
         {
-            // auto& element = m_back.push(std::move(value));
-            auto& element = [this, &value]() -> decltype(auto) {
-                if (m_back.underlying().capacity() == m_back.size()) {
-                    return m_front.push(std::move(value));
-                } else {
-                    return m_back.push(std::move(value));
-                }
-            }();
+            auto& element = m_back.push(std::move(value));
             balance();
             return element;
         }
 
         T& push_front(T&& value)
         {
-            // auto& element = m_front.push(std::move(value));
-            auto& element = [this, &value]() -> decltype(auto) {
-                if (m_front.underlying().capacity() == m_front.size()) {
-                    return m_back.push(std::move(value));
-                } else {
-                    return m_front.push(std::move(value));
-                }
-            }();
+            auto& element = m_front.push(std::move(value));
             balance();
             return element;
         }
@@ -192,14 +178,16 @@ namespace dsa
             auto totalSize    = front.size() + back.size();
             auto newFrontSize = totalSize / 2;
 
-            ArrayList<T> newFront{ front.capacity() };
+            ArrayList<T> newFront{};
+            newFront.reserve(front.capacity());
             for (std::size_t i = newFrontSize; i > 0; --i) {
                 newFront.push_back(get(i - 1));    // reversed
             }
 
             auto newBackSize = totalSize - newFrontSize;
 
-            ArrayList<T> newBack{ back.capacity() };
+            ArrayList<T> newBack{};
+            newBack.reserve(back.capacity());
             for (std::size_t i = 0; i < newBackSize; ++i) {
                 newBack.push_back(get(i + newFrontSize));
             }

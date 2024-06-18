@@ -30,13 +30,11 @@ void test()
     using ut::expect, ut::that, ut::throws, ut::nothrow;
 
     "Deque should be able to be constructed with a backend"_test = [] {
-        dsa::Deque<Type> deque{ 10 };    // 10 for each front and back stack
+        dsa::Deque<Type> deque{};    //
     };
 
     "Deque with ArrayList backend should be able to push and pop"_test = [] {
-        dsa::Deque<Type> deque{ 10 };
-        expect(deque.underlying().first.underlying().capacity() == 10_u);
-        expect(deque.underlying().second.underlying().capacity() == 10_u);
+        dsa::Deque<Type> deque{};    // dynamic capacity now
 
         {    // push_back and pop_back
             for (auto i : rv::iota(0, 10)) {

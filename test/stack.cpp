@@ -32,20 +32,22 @@ void test()
     };
 
     "Stack should be able to be constructed with a backend"_test = [] {
-        dsa::Stack<dsa::ArrayList, Type>        stack{ 10 };    // limited capacity
+        dsa::Stack<dsa::ArrayList, Type>        stack;    // dynamic capacity
         dsa::Stack<dsa::LinkedList, Type>       stack2;
         dsa::Stack<dsa::DoublyLinkedList, Type> stack3;
     };
 
     "Stack with ArrayList backend should be able to push and pop"_test = [] {
-        dsa::Stack<dsa::ArrayList, Type> stack{ 10 };
+        dsa::Stack<dsa::ArrayList, Type> stack{};
 
         for (auto i : rv::iota(0, 10)) {
             stack.push(i);
         }
 
         expect(stack.size() == 10_i);
-        expect(throws([&] { stack.push(10); }));
+        expect(nothrow([&] { stack.push(10); }));
+        expect(stack.size() == 11_i);
+        expect(stack.pop().value() == 10_i);
 
         for (auto i : rv::iota(0, 10) | rv::reverse) {
             expect(that % stack.top().value() == i);

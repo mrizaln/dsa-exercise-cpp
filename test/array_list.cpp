@@ -3,9 +3,6 @@
 #include <dsa/array_list.hpp>
 
 #include <boost/ut.hpp>
-#include <fmt/core.h>
-#include <fmt/ranges.h>
-#include <fmt/std.h>
 
 #include <ranges>
 
@@ -23,15 +20,28 @@ void test()
 {
     using namespace ut::operators;
     using namespace ut::literals;
-    using ut::expect, ut::that, ut::throws;
+    using ut::expect, ut::that, ut::throws, ut::nothrow;
 
     "iterator should be a random access iterator"_test = [] {
         using Iter = dsa::ArrayList<Type>::Iterator;
         static_assert(std::random_access_iterator<Iter>);
     };
 
+    "array_list with 0 capacity is usable"_test = [] {
+        dsa::ArrayList<int> list{};
+        expect(list.size() == 0_i);
+        expect(list.capacity() == 0_i);
+
+        expect(nothrow([&] { list.push_back(42); })) << "pushing to an empty list should grow the capacity";
+        expect(that % list.size() == 1_i);
+        expect(that % list.capacity() > 0);
+
+        expect(nothrow([&] { list.pop_back(); })) << "pop from a list with 1 element";
+    };
+
     "push_back should add an element to the end of the list"_test = [] {
-        dsa::ArrayList<Type> list{ 20 };
+        dsa::ArrayList<Type> list{};
+        list.reserve(20);
 
         // first push
         auto size = list.size();
@@ -60,7 +70,10 @@ void test()
             expect(value.value() == 42_i);
         }
 
-        expect(throws([&] { list.push_back(42); })) << "should throw when push to full list";
+        expect(that % list.size() == list.capacity());
+        expect(nothrow([&] { list.push_back(42); })) << "pushing to a full buffer should grows the capacity";
+        expect(that % list.size() == 21_i);
+        expect(that % list.capacity() > list.size());
 
         list.clear();
 
@@ -73,7 +86,7 @@ void test()
 
     "pop_back should remove the last element from the list"_test = [] {
         std::vector<int>     values = { 42, 0, 1, 2, 3, 4, 5, 6, 7, 8 };
-        dsa::ArrayList<Type> list{ 20 };
+        dsa::ArrayList<Type> list{};
         for (auto value : values) {
             list.push_back(std::move(value));
         }
@@ -95,17 +108,9 @@ void test()
         expect(throws([&] { list.pop_back(); })) << "should throw when pop from empty list";
     };
 
-    "array_list with 0 capacity is basically useless"_test = [] {
-        dsa::ArrayList<int> list{ 0 };
-        expect(list.size() == 0_i);
-        expect(list.capacity() == 0_i);
-        expect(throws([&] { list.push_back(42); })) << "should throw when push to empty list";
-        expect(throws([&] { list.pop_back(); })) << "should throw when pop from empty list";
-    };
-
     "insert should inserts value at specified position"_test = [] {
         std::vector<int>     values = { 42, 0, 1, 2, 3, 4, 5, 6, 7, 8 };
-        dsa::ArrayList<Type> list{ 20 };
+        dsa::ArrayList<Type> list{};
 
         // first insert
         list.insert(0, 42);
@@ -133,7 +138,7 @@ void test()
 
     "remove should removes value at specified position"_test = [] {
         std::vector<int>     values = { 42, 0, 1, 2, 3, 4, 5, 6, 7, 8 };
-        dsa::ArrayList<Type> list{ 20 };
+        dsa::ArrayList<Type> list{};
         for (auto value : values) {
             list.push_back(std::move(value));
         }
@@ -152,11 +157,11 @@ void test()
         expect(list.remove(0).value() == 42_i);
         expect(list.size() == 0_i);
 
-        expect(throws([&] { list.remove(0); })) << "removing element of an empty list";
+        expect(throws([&] { list.remove(0); })) << "removing element of an empty list should throw";
     };
 
-    "move should leave list into an empty state that is not usable"_test = [] {
-        dsa::ArrayList<Type> list{ 20 };
+    "move should leave list into an empty state that is usable"_test = [] {
+        dsa::ArrayList<Type> list{};
         populateContainer(list, rv::iota(0, 10));
 
         expect(list.size() == 10_i);
@@ -166,12 +171,16 @@ void test()
         expect(list.size() == 0_i);
         expect(list.capacity() == 0_i);
 
-        expect(throws([&] { list.push_back(42); })) << "should throw when push to empty list";
+        expect(nothrow([&] { list.push_back(42); })) << "should throw when push to empty list";
+        expect(that % list.size() == 1_i);
+        expect(that % list.capacity() > 0);
+
+        expect(nothrow([&] { list.pop_back(); })) << "pop from a list with 1 element";
     };
 
     if constexpr (std::copyable<Type>) {
         "copy should copy each element exactly"_test = [] {
-            dsa::ArrayList<Type> list{ 20 };
+            dsa::ArrayList<Type> list{};
             populateContainer(list, rv::iota(0, 10));
 
             expect(list.size() == 10_i);
@@ -184,6 +193,15 @@ void test()
             auto list3 = list2;
             expect(list3.size() == 10_i);
             expect(rr::equal(list3, list));
+        };
+    }
+
+    if constexpr (std::default_initializable<Type>) {
+        "non-default constructed array_list should default initialize exactly N elements"_test = [] {
+            dsa::ArrayList<Type> list{ 41 };
+            expect(list.size() == 41_i);
+            expect(list.capacity() == 41_i);
+            expect(rr::all_of(list, [](const auto& value) { return value.stat().defaulted(); }));
         };
     }
 }

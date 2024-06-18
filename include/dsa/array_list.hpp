@@ -28,7 +28,8 @@ namespace dsa
         ArrayList() = default;
         ~ArrayList() { clear(); }
 
-        explicit ArrayList(std::size_t capacity);
+        explicit ArrayList(std::size_t count)
+            requires std::default_initializable<T>;
 
         ArrayList(ArrayList&& other);
         ArrayList& operator=(ArrayList&& other);
@@ -46,6 +47,14 @@ namespace dsa
 
         T& push_back(T&& value) { return insert(m_size, std::move(value)); }
         T  pop_back() { return remove(m_size - 1); }
+
+        // reallocation will happen in order to fit
+        void fit();
+
+        // resize the capacity:
+        // if count > capacity() -> reallocate the buffer with the new capacity.
+        // else                  -> do nothing.
+        void reserve(std::size_t count);
 
         auto&& at(this auto&& self, std::size_t pos)
         {
@@ -78,6 +87,7 @@ namespace dsa
 
         ShiftResult shiftRight(std::size_t begin, std::size_t count);
         void        destroyAndShiftLeft(std::size_t begin, std::size_t end);
+        void        grow();
     };
 }
 
@@ -88,9 +98,14 @@ namespace dsa
 namespace dsa
 {
     template <ArrayElement T>
-    ArrayList<T>::ArrayList(std::size_t capacity)
-        : m_buffer{ capacity }
+    ArrayList<T>::ArrayList(std::size_t count)
+        requires std::default_initializable<T>
+        : m_buffer{ count }
+        , m_size{ count }
     {
+        for (auto i = 0uz; i < count; ++i) {
+            m_buffer.construct(i);
+        }
     }
 
     template <ArrayElement T>
@@ -166,9 +181,7 @@ namespace dsa
         }
 
         if (m_size == capacity()) {
-            throw std::out_of_range{
-                std::format("Cannot insert, not enough capacity ({} > {})", m_size, capacity())
-            };
+            grow();
         }
 
         if (pos < m_size) {
@@ -192,6 +205,30 @@ namespace dsa
         destroyAndShiftLeft(pos, pos + 1);
         --m_size;
         return value;
+    }
+
+    template <ArrayElement T>
+    void ArrayList<T>::fit()
+    {
+        RawBuffer<T> newBuffer{ m_size };
+        for (auto i = 0uz; i < m_size; ++i) {
+            newBuffer.construct(i, std::move(m_buffer.at(i)));
+            m_buffer.destroy(i);
+        }
+        m_buffer = std::move(newBuffer);
+    }
+
+    template <ArrayElement T>
+    void ArrayList<T>::reserve(std::size_t count)
+    {
+        if (count > capacity()) {
+            RawBuffer<T> newBuffer{ count };
+            for (auto i = 0uz; i < m_size; ++i) {
+                newBuffer.construct(i, std::move(m_buffer.at(i)));
+                m_buffer.destroy(i);
+            }
+            m_buffer = std::move(newBuffer);
+        }
     }
 
     // the elements between [begin, begin + count) will be shifted to the right by count positions.
@@ -252,4 +289,12 @@ namespace dsa
             m_buffer.destroy(offset);
         }
     };
+
+    template <ArrayElement T>
+    void ArrayList<T>::grow()
+    {
+        // 2 * growth factor
+        auto newSize = capacity() == 0 ? 1 : 2 * capacity();
+        reserve(newSize);
+    }
 }
