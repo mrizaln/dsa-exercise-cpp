@@ -42,5 +42,6 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
   make_test(queue)
   make_test(circular_buffer)
   make_test(deque)
+  make_test(raw_buffer)
 
 endif()
