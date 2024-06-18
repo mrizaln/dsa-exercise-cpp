@@ -58,280 +58,48 @@ namespace dsa
         CircularBuffer()  = default;
         ~CircularBuffer() = default;
 
-        CircularBuffer(std::size_t capacity, BufferPolicy policy = {})
-            : m_buffer{ std::make_unique<T[]>(capacity) }
-            , m_capacity{ capacity }
-            , m_head{ 0 }
-            , m_tail{ capacity == 0 ? npos : 0 }
-            , m_policy{ policy }
-        {
-        }
+        CircularBuffer(std::size_t capacity, BufferPolicy policy = {});
+
+        CircularBuffer(CircularBuffer&& other) noexcept;
+        CircularBuffer& operator=(CircularBuffer&& other) noexcept;
 
         CircularBuffer(const CircularBuffer& other)
-            requires std::copyable<T>
-            : m_buffer{ std::make_unique<T[]>(other.m_capacity) }
-            , m_capacity{ other.m_capacity }
-            , m_head{ other.m_head }
-            , m_tail{ other.m_tail }
-            , m_policy{ other.m_policy }
-        {
-            std::copy(other.m_buffer.get(), other.m_buffer.get() + other.m_capacity, m_buffer.get());
-        }
-
+            requires std::copyable<T>;
         CircularBuffer& operator=(const CircularBuffer& other)
-            requires std::copyable<T>
-        {
-            if (this == &other) {
-                return *this;
-            }
+            requires std::copyable<T>;
 
-            swap(CircularBuffer{ other });    // copy-and-swap idiom
-            return *this;
-        }
-
-        CircularBuffer(CircularBuffer&& other) noexcept
-            : m_buffer{ std::exchange(other.m_buffer, nullptr) }
-            , m_capacity{ std::exchange(other.m_capacity, 0) }
-            , m_head{ std::exchange(other.m_head, 0) }
-            , m_tail{ std::exchange(other.m_tail, npos) }
-            , m_policy{ std::exchange(other.m_policy, {}) }
-        {
-        }
-
-        CircularBuffer& operator=(CircularBuffer&& other) noexcept
-        {
-            if (this == &other) {
-                return *this;
-            }
-
-            m_buffer   = std::exchange(other.m_buffer, nullptr);
-            m_capacity = std::exchange(other.m_capacity, 0);
-            m_head     = std::exchange(other.m_head, 0);
-            m_tail     = std::exchange(other.m_tail, 0);
-            m_policy   = std::exchange(other.m_policy, {});
-
-            return *this;
-        }
-
-        void swap(CircularBuffer& other) noexcept
-        {
-            std::swap(m_buffer, other.m_buffer);
-            std::swap(m_capacity, other.m_capacity);
-            std::swap(m_head, other.m_head);
-            std::swap(m_tail, other.m_tail);
-            std::swap(m_policy, other.m_policy);
-        }
-
-        void reset() noexcept
-        {
-            m_head = 0;
-            m_tail = 0;
-        }
-
-        void clear() noexcept
-        {
-            m_head = 0;
-            m_tail = 0;
-
-            if constexpr (std::is_trivially_default_constructible_v<T>) {
-                std::fill(m_buffer.get(), m_buffer.get() + m_capacity, T{});
-            } else {
-                for (std::size_t i = 0; i < m_capacity; ++i) {
-                    m_buffer[i] = T{};
-                }
-            }
-        }
+        void swap(CircularBuffer& other) noexcept;
+        void reset() noexcept;
+        void clear() noexcept;
 
         // TODO: add condition when
         // - size < capacity && size < newCapacity
         // - size < capacity && size > newCpacity
-        void resize(std::size_t newCapacity, BufferResizePolicy policy = BufferResizePolicy::DiscardOld)
-        {
-            if (newCapacity == 0) {
-                clear();
-                m_capacity = 0;
-                m_tail     = npos;
-                return;
-            }
+        void resize(std::size_t newCapacity, BufferResizePolicy policy = BufferResizePolicy::DiscardOld);
 
-            if (newCapacity == capacity()) {
-                return;
-            }
-
-            if (size() == 0) {
-                m_buffer   = std::make_unique<T[]>(newCapacity);
-                m_capacity = newCapacity;
-                m_head     = 0;
-                m_tail     = 0;
-
-                return;
-            }
-
-            if (newCapacity > capacity()) {
-                const auto b = [buf = m_buffer.get()](std::size_t offset) {
-                    return std::move_iterator{ buf + offset };
-                };
-
-                auto buffer = std::make_unique<T[]>(newCapacity);
-                std::rotate_copy(b(0), b(m_head), b(capacity()), buffer.get());
-                m_buffer   = std::move(buffer);
-                m_tail     = m_tail == npos ? capacity() : (m_tail + capacity() - m_head) % capacity();
-                m_head     = 0;
-                m_capacity = newCapacity;
-
-                return;
-            }
-
-            auto buffer = std::make_unique<T[]>(newCapacity);
-            auto count  = size();
-            auto offset = count <= newCapacity ? 0ul : count - newCapacity;
-
-            switch (policy) {
-            case BufferResizePolicy::DiscardOld: {
-                auto begin = (m_head + offset) % capacity();
-                for (std::size_t i = 0; i < std::min(newCapacity, count); ++i) {
-                    buffer[i] = std::move(m_buffer[(begin + i) % capacity()]);
-                }
-            } break;
-            case BufferResizePolicy::DiscardNew: {
-                auto end = m_tail == npos ? m_head : m_tail;
-                end      = (end + capacity() - offset) % capacity();
-                for (std::size_t i = std::min(newCapacity, count); i-- > 0;) {
-                    end       = (end + capacity() - 1) % capacity();
-                    buffer[i] = std::move(m_buffer[end]);
-                }
-            } break;
-            }
-
-            m_buffer   = std::move(buffer);
-            m_capacity = newCapacity;
-            m_head     = 0;
-            m_tail     = count <= newCapacity ? count : npos;
-        }
-
-        BufferPolicy getPolicy() const noexcept { return m_policy; }
+        BufferPolicy getPolicy() const noexcept { return m_policy; };
 
         void setPolicy(
             std::optional<BufferCapacityPolicy> storagePolicy,
             std::optional<BufferStorePolicy>    storePolicy
-        ) noexcept
-        {
-            if (storagePolicy.has_value()) {
-                m_policy.m_capacity = storagePolicy.value();
-            }
-
-            if (storePolicy.has_value()) {
-                m_policy.m_store = storePolicy.value();
-            }
-        }
+        ) noexcept;
 
         // snake-case to be able to use std functions like std::back_inserter
-        T& push_back(T&& value)
-        {
-            if (capacity() == 0) {
-                throw std::logic_error{ "Can't push to a buffer with zero capacity" };
-            }
+        T& push_back(T&& value);
+        T  pop_front();
 
-            if (m_tail == npos && m_policy.m_capacity == BufferCapacityPolicy::DynamicCapacity) {
-                resize(capacity() * 2, BufferResizePolicy::DiscardOld);
-            }
-
-            // m_tail is checked again here since call to resize() above will modify it
-            if (m_tail == npos && m_policy.m_store == BufferStorePolicy::ThrowOnFull) {
-                throw std::out_of_range{ "Buffer is full" };
-            }
-
-            auto current = m_head;
-
-            // this branch only taken when the buffer is not full
-            if (m_tail != npos) {
-                current           = m_tail;
-                m_buffer[current] = std::move(value);
-                if (++m_tail == capacity()) {
-                    m_tail = 0;
-                }
-                if (m_tail == m_head) {
-                    m_tail = npos;
-                }
-            } else {
-                current           = m_head;
-                m_buffer[current] = std::move(value);
-                if (++m_head == capacity()) {
-                    m_head = 0;
-                }
-            }
-
-            return m_buffer[current];
-        }
-
-        T pop_front()
-        {
-            if (size() == 0) {
-                throw std::out_of_range{ "Buffer is empty" };
-            }
-
-            auto value = std::move(m_buffer[m_head]);
-            if (m_tail == npos) {
-                m_tail = m_head;
-            }
-            if (++m_head == capacity()) {
-                m_head = 0;
-            }
-
-            if (size() == capacity() / 4) {
-                resize(capacity() / 2, BufferResizePolicy::DiscardOld);
-            }
-
-            return value;
-        }
-
-        CircularBuffer& linearize() noexcept
-        {
-            if (m_head == 0 && m_tail == npos) {
-                return *this;
-            }
-
-            std::rotate(m_buffer.get(), m_buffer.get() + m_head, m_buffer.get() + capacity());
-            m_tail = m_tail != npos ? (m_tail + capacity() - m_head) % capacity() : npos;
-
-            m_head = 0;
-
-            return *this;
-        }
-
+        CircularBuffer&              linearize() noexcept;
         [[nodiscard]] CircularBuffer linearizeCopy() const noexcept
-            requires std::copyable<T>
-        {
-            CircularBuffer result{ m_capacity };
-            std::rotate_copy(
-                m_buffer.get(), m_buffer.get() + m_head, m_buffer.get() + capacity(), result.m_buffer.get()
-            );
+            requires std::copyable<T>;
 
-            result.m_tail = m_tail != npos ? (m_tail + m_capacity - m_head) % m_capacity : npos;
-            result.m_head = 0;
-
-            return result;
-        }
-
-        std::size_t size() const noexcept
-        {
-            return m_tail == npos ? capacity() : (m_tail + capacity() - m_head) % capacity();
-        }
-
+        std::size_t size() const noexcept;
         std::size_t capacity() const noexcept { return m_capacity; }
 
         T&       front() noexcept { return m_buffer[m_head]; }
         const T& front() const noexcept { return m_buffer[m_head]; }
 
-        T& back() noexcept
-        {
-            return m_buffer[m_tail == npos ? (m_head + capacity() - 1) % capacity() : m_tail - 1];
-        }
-
-        const T& back() const noexcept
-        {
-            return m_buffer[m_tail == npos ? (m_head + capacity() - 1) % capacity() : m_tail - 1];
-        }
+        T&       back() noexcept;
+        const T& back() const noexcept;
 
         T*       data() noexcept { return m_buffer.get(); }
         const T* data() const noexcept { return m_buffer.get(); }
@@ -352,6 +120,298 @@ namespace dsa
         std::size_t          m_tail     = npos;
         BufferPolicy         m_policy   = {};
     };
+}
+
+// -----------------------------------------------------------------------------
+// implementation detail
+// -----------------------------------------------------------------------------
+
+namespace dsa
+{
+    template <CircularBufferElement T>
+    CircularBuffer<T>::CircularBuffer(std::size_t capacity, BufferPolicy policy)
+        : m_buffer{ std::make_unique<T[]>(capacity) }
+        , m_capacity{ capacity }
+        , m_head{ 0 }
+        , m_tail{ capacity == 0 ? npos : 0 }
+        , m_policy{ policy }
+    {
+    }
+
+    template <CircularBufferElement T>
+    CircularBuffer<T>::CircularBuffer(const CircularBuffer& other)
+        requires std::copyable<T>
+        : m_buffer{ std::make_unique<T[]>(other.m_capacity) }
+        , m_capacity{ other.m_capacity }
+        , m_head{ other.m_head }
+        , m_tail{ other.m_tail }
+        , m_policy{ other.m_policy }
+    {
+        std::copy(other.m_buffer.get(), other.m_buffer.get() + other.m_capacity, m_buffer.get());
+    }
+
+    template <CircularBufferElement T>
+    CircularBuffer<T>& CircularBuffer<T>::operator=(const CircularBuffer& other)
+        requires std::copyable<T>
+    {
+        if (this == &other) {
+            return *this;
+        }
+
+        swap(CircularBuffer{ other });    // copy-and-swap idiom
+        return *this;
+    }
+
+    template <CircularBufferElement T>
+    CircularBuffer<T>::CircularBuffer(CircularBuffer&& other) noexcept
+        : m_buffer{ std::exchange(other.m_buffer, nullptr) }
+        , m_capacity{ std::exchange(other.m_capacity, 0) }
+        , m_head{ std::exchange(other.m_head, 0) }
+        , m_tail{ std::exchange(other.m_tail, npos) }
+        , m_policy{ std::exchange(other.m_policy, {}) }
+    {
+    }
+
+    template <CircularBufferElement T>
+    CircularBuffer<T>& CircularBuffer<T>::operator=(CircularBuffer&& other) noexcept
+    {
+        if (this == &other) {
+            return *this;
+        }
+
+        m_buffer   = std::exchange(other.m_buffer, nullptr);
+        m_capacity = std::exchange(other.m_capacity, 0);
+        m_head     = std::exchange(other.m_head, 0);
+        m_tail     = std::exchange(other.m_tail, 0);
+        m_policy   = std::exchange(other.m_policy, {});
+
+        return *this;
+    }
+
+    template <CircularBufferElement T>
+    void CircularBuffer<T>::swap(CircularBuffer& other) noexcept
+    {
+        std::swap(m_buffer, other.m_buffer);
+        std::swap(m_capacity, other.m_capacity);
+        std::swap(m_head, other.m_head);
+        std::swap(m_tail, other.m_tail);
+        std::swap(m_policy, other.m_policy);
+    }
+
+    template <CircularBufferElement T>
+    void CircularBuffer<T>::reset() noexcept
+    {
+        m_head = 0;
+        m_tail = 0;
+    }
+
+    template <CircularBufferElement T>
+    void CircularBuffer<T>::clear() noexcept
+    {
+        m_head = 0;
+        m_tail = 0;
+
+        if constexpr (std::is_trivially_default_constructible_v<T>) {
+            std::fill(m_buffer.get(), m_buffer.get() + m_capacity, T{});
+        } else {
+            for (std::size_t i = 0; i < m_capacity; ++i) {
+                m_buffer[i] = T{};
+            }
+        }
+    }
+
+    // TODO: add condition when
+    // - size < capacity && size < newCapacity
+    // - size < capacity && size > newCpacity
+    template <CircularBufferElement T>
+    void CircularBuffer<T>::resize(std::size_t newCapacity, BufferResizePolicy policy)
+    {
+        if (newCapacity == 0) {
+            clear();
+            m_capacity = 0;
+            m_tail     = npos;
+            return;
+        }
+
+        if (newCapacity == capacity()) {
+            return;
+        }
+
+        if (size() == 0) {
+            m_buffer   = std::make_unique<T[]>(newCapacity);
+            m_capacity = newCapacity;
+            m_head     = 0;
+            m_tail     = 0;
+
+            return;
+        }
+
+        if (newCapacity > capacity()) {
+            const auto b = [buf = m_buffer.get()](std::size_t offset) {
+                return std::move_iterator{ buf + offset };
+            };
+
+            auto buffer = std::make_unique<T[]>(newCapacity);
+            std::rotate_copy(b(0), b(m_head), b(capacity()), buffer.get());
+            m_buffer   = std::move(buffer);
+            m_tail     = m_tail == npos ? capacity() : (m_tail + capacity() - m_head) % capacity();
+            m_head     = 0;
+            m_capacity = newCapacity;
+
+            return;
+        }
+
+        auto buffer = std::make_unique<T[]>(newCapacity);
+        auto count  = size();
+        auto offset = count <= newCapacity ? 0ul : count - newCapacity;
+
+        switch (policy) {
+        case BufferResizePolicy::DiscardOld: {
+            auto begin = (m_head + offset) % capacity();
+            for (std::size_t i = 0; i < std::min(newCapacity, count); ++i) {
+                buffer[i] = std::move(m_buffer[(begin + i) % capacity()]);
+            }
+        } break;
+        case BufferResizePolicy::DiscardNew: {
+            auto end = m_tail == npos ? m_head : m_tail;
+            end      = (end + capacity() - offset) % capacity();
+            for (std::size_t i = std::min(newCapacity, count); i-- > 0;) {
+                end       = (end + capacity() - 1) % capacity();
+                buffer[i] = std::move(m_buffer[end]);
+            }
+        } break;
+        }
+
+        m_buffer   = std::move(buffer);
+        m_capacity = newCapacity;
+        m_head     = 0;
+        m_tail     = count <= newCapacity ? count : npos;
+    }
+
+    template <CircularBufferElement T>
+    void CircularBuffer<T>::setPolicy(
+        std::optional<BufferCapacityPolicy> storagePolicy,
+        std::optional<BufferStorePolicy>    storePolicy
+    ) noexcept
+    {
+        if (storagePolicy.has_value()) {
+            m_policy.m_capacity = storagePolicy.value();
+        }
+
+        if (storePolicy.has_value()) {
+            m_policy.m_store = storePolicy.value();
+        }
+    }
+
+    // snake-case to be able to use std functions like std::back_inserter
+    template <CircularBufferElement T>
+    T& CircularBuffer<T>::push_back(T&& value)
+    {
+        if (capacity() == 0) {
+            throw std::logic_error{ "Can't push to a buffer with zero capacity" };
+        }
+
+        if (m_tail == npos && m_policy.m_capacity == BufferCapacityPolicy::DynamicCapacity) {
+            resize(capacity() * 2, BufferResizePolicy::DiscardOld);
+        }
+
+        // m_tail is checked again here since call to resize() above will modify it
+        if (m_tail == npos && m_policy.m_store == BufferStorePolicy::ThrowOnFull) {
+            throw std::out_of_range{ "Buffer is full" };
+        }
+
+        auto current = m_head;
+
+        // this branch only taken when the buffer is not full
+        if (m_tail != npos) {
+            current           = m_tail;
+            m_buffer[current] = std::move(value);
+            if (++m_tail == capacity()) {
+                m_tail = 0;
+            }
+            if (m_tail == m_head) {
+                m_tail = npos;
+            }
+        } else {
+            current           = m_head;
+            m_buffer[current] = std::move(value);
+            if (++m_head == capacity()) {
+                m_head = 0;
+            }
+        }
+
+        return m_buffer[current];
+    }
+
+    template <CircularBufferElement T>
+    T CircularBuffer<T>::pop_front()
+    {
+        if (size() == 0) {
+            throw std::out_of_range{ "Buffer is empty" };
+        }
+
+        auto value = std::move(m_buffer[m_head]);
+        if (m_tail == npos) {
+            m_tail = m_head;
+        }
+        if (++m_head == capacity()) {
+            m_head = 0;
+        }
+
+        if (size() == capacity() / 4) {
+            resize(capacity() / 2, BufferResizePolicy::DiscardOld);
+        }
+
+        return value;
+    }
+
+    template <CircularBufferElement T>
+    CircularBuffer<T>& CircularBuffer<T>::linearize() noexcept
+    {
+        if (m_head == 0 && m_tail == npos) {
+            return *this;
+        }
+
+        std::rotate(m_buffer.get(), m_buffer.get() + m_head, m_buffer.get() + capacity());
+        m_tail = m_tail != npos ? (m_tail + capacity() - m_head) % capacity() : npos;
+
+        m_head = 0;
+
+        return *this;
+    }
+
+    template <CircularBufferElement T>
+    CircularBuffer<T> CircularBuffer<T>::linearizeCopy() const noexcept
+        requires std::copyable<T>
+    {
+        CircularBuffer result{ m_capacity };
+        std::rotate_copy(
+            m_buffer.get(), m_buffer.get() + m_head, m_buffer.get() + capacity(), result.m_buffer.get()
+        );
+
+        result.m_tail = m_tail != npos ? (m_tail + m_capacity - m_head) % m_capacity : npos;
+        result.m_head = 0;
+
+        return result;
+    }
+
+    template <CircularBufferElement T>
+    std::size_t CircularBuffer<T>::size() const noexcept
+    {
+        return m_tail == npos ? capacity() : (m_tail + capacity() - m_head) % capacity();
+    }
+
+    template <CircularBufferElement T>
+    T& CircularBuffer<T>::back() noexcept
+    {
+        return m_buffer[m_tail == npos ? (m_head + capacity() - 1) % capacity() : m_tail - 1];
+    }
+
+    template <CircularBufferElement T>
+    const T& CircularBuffer<T>::back() const noexcept
+    {
+        return m_buffer[m_tail == npos ? (m_head + capacity() - 1) % capacity() : m_tail - 1];
+    }
 
     template <CircularBufferElement T>
     template <bool IsConst>
@@ -436,4 +496,4 @@ namespace dsa
         std::size_t m_index     = 0;
         std::size_t m_lastIndex = m_index;
     };
-};
+}
