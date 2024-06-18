@@ -42,7 +42,8 @@ namespace dsa
 
         T&       at(std::size_t pos) & noexcept { return m_data[pos]; }
         T&&      at(std::size_t pos) && noexcept { return std::move(m_data[pos]); }
-        const T& at(std::size_t pos) const noexcept { return m_data[pos]; }
+        const T& at(std::size_t pos) const& noexcept { return m_data[pos]; }
+        const T& at(std::size_t pos) const&& noexcept { return m_data[pos]; }
 
         std::size_t size() const noexcept { return m_size; }
 
@@ -69,9 +70,9 @@ namespace dsa
         : m_data{ m_allocator.allocate(size) }
         , m_size{ size }
     {
-        if constexpr (DSA_RAW_BUFFER_DEBUG) {
-            std::fill(m_constructed.get(), m_constructed.get() + size, false);
-        }
+#if DSA_RAW_BUFFER_DEBUG
+        std::fill(m_constructed.get(), m_constructed.get() + size, false);
+#endif
     }
 
     template <typename T>
@@ -81,16 +82,17 @@ namespace dsa
             return;
         }
 
-        if constexpr (DSA_RAW_BUFFER_DEBUG) {
-            assert(
-                std::all_of(
-                    m_constructed.get(),
-                    m_constructed.get() + m_size,
-                    [](bool constructed) { return !constructed; }
-                )
-                && "Not all elements are destructed"
-            );
-        }
+#if DSA_RAW_BUFFER_DEBUG
+        assert(
+            std::all_of(
+                m_constructed.get(),
+                m_constructed.get() + m_size,
+                [](bool constructed) { return !constructed; }
+            )
+            && "Not all elements are destructed"
+        );
+#endif
+
         m_allocator.deallocate(m_data, m_size);
         m_data = nullptr;
     }
@@ -119,9 +121,9 @@ namespace dsa
         m_data = std::exchange(other.m_data, nullptr);
         m_size = std::exchange(other.m_size, 0);
 
-        if constexpr (DSA_RAW_BUFFER_DEBUG) {
-            m_constructed = std::exchange(other.m_constructed, nullptr);
-        }
+#if DSA_RAW_BUFFER_DEBUG
+        m_constructed = std::exchange(other.m_constructed, nullptr);
+#endif
 
         return *this;
     }
@@ -133,20 +135,20 @@ namespace dsa
         Ts&&... args
     ) noexcept(std::is_nothrow_constructible_v<T, Ts...>)
     {
-        if constexpr (DSA_RAW_BUFFER_DEBUG) {
-            assert(!m_constructed[offset] && "Element not constructed");
-            m_constructed[offset] = true;
-        }
+#if DSA_RAW_BUFFER_DEBUG
+        assert(!m_constructed[offset] && "Element not constructed");
+        m_constructed[offset] = true;
+#endif
         return *std::construct_at(m_data + offset, std::forward<Ts>(args)...);
     }
 
     template <typename T>
     void RawBuffer<T>::destroy(std::size_t offset) noexcept
     {
-        if constexpr (DSA_RAW_BUFFER_DEBUG) {
-            assert(m_constructed[offset] && "Element not constructed");
-            m_constructed[offset] = false;
-        }
+#if DSA_RAW_BUFFER_DEBUG
+        assert(m_constructed[offset] && "Element not constructed");
+        m_constructed[offset] = false;
+#endif
         std::destroy_at(m_data + offset);
     }
 }
