@@ -130,11 +130,11 @@ void test()
 
     "push_back with DynamicCapacity should never replace old elements nor throws on a full buffer"_test =
         [](dsa::BufferStorePolicy storePolicy) {
-            dsa::BufferPolicy throwOnFullPolicy{
+            dsa::BufferPolicy policy{
                 .m_capacity = dsa::BufferCapacityPolicy::DynamicCapacity,
                 .m_store    = storePolicy,
             };
-            dsa::CircularBuffer<Type> buffer2{ 10, throwOnFullPolicy };
+            dsa::CircularBuffer<Type> buffer2{ 10, policy };
 
             // fully populate buffer
             populateContainer(buffer2, rv::iota(0, 10));

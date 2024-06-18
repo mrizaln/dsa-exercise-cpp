@@ -22,12 +22,10 @@ void test()
     using namespace ut::literals;
     using ut::expect, ut::that, ut::throws, ut::nothrow;
 
-    // TODO: reenable tests for CircularBuffer after std::default_initializable constraint relaxed
-
     "LinkedList and DoublyLinkedList should be able to be used as Queue backend"_test = [] {
         static_assert(dsa::QueueCompatible<dsa::LinkedList, Type>);
         static_assert(dsa::QueueCompatible<dsa::DoublyLinkedList, Type>);
-        // static_assert(dsa::QueueCompatible<dsa::CircularBuffer, Type>);
+        static_assert(dsa::QueueCompatible<dsa::CircularBuffer, Type>);
     };
 
     "ArrayList should not be able to be used as Queue backend"_test = [] {
@@ -38,11 +36,11 @@ void test()
         dsa::Queue<dsa::LinkedList, Type>       queue;
         dsa::Queue<dsa::DoublyLinkedList, Type> queue2;
 
-        // dsa::BufferPolicy policy{
-        //     .m_capacity = dsa::BufferCapacityPolicy::FixedCapacity,
-        //     .m_store    = dsa::BufferStorePolicy::ReplaceOldest,
-        // };
-        // dsa::Queue<dsa::CircularBuffer, Type> queue3{ 10, policy };
+        dsa::BufferPolicy policy{
+            .m_capacity = dsa::BufferCapacityPolicy::FixedCapacity,
+            .m_store    = dsa::BufferStorePolicy::ReplaceOldest,
+        };
+        dsa::Queue<dsa::CircularBuffer, Type> queue3{ 10, policy };
     };
 
     "Queue with LinkedList backend should be able to push and pop"_test = [] {
@@ -81,27 +79,27 @@ void test()
         expect(queue.empty());
     };
 
-    // "Queue with CircularBuffer backend should be able to push and pop"_test = [] {
-    //     dsa::BufferPolicy policy{
-    //         .m_capacity = dsa::BufferCapacityPolicy::FixedCapacity,
-    //         .m_store    = dsa::BufferStorePolicy::ReplaceOldest,
-    //     };
-    //     dsa::Queue<dsa::CircularBuffer, Type> queue{ 10, policy };
+    "Queue with CircularBuffer backend should be able to push and pop"_test = [] {
+        dsa::BufferPolicy policy{
+            .m_capacity = dsa::BufferCapacityPolicy::FixedCapacity,
+            .m_store    = dsa::BufferStorePolicy::ReplaceOldest,
+        };
+        dsa::Queue<dsa::CircularBuffer, Type> queue{ 10, policy };
 
-    //     for (auto i : rv::iota(0, 10)) {
-    //         auto& v = queue.push(i);
-    //         expect(that % v.value() == i);
-    //         expect(that % queue.back().value() == i);
-    //     }
+        for (auto i : rv::iota(0, 10)) {
+            auto& v = queue.push(i);
+            expect(that % v.value() == i);
+            expect(that % queue.back().value() == i);
+        }
 
-    //     expect(queue.size() == 10_i);
+        expect(queue.size() == 10_i);
 
-    //     for (auto i : rv::iota(0, 10)) {
-    //         expect(that % queue.front().value() == i);
-    //         expect(that % queue.pop().value() == i);
-    //     }
-    //     expect(queue.empty());
-    // };
+        for (auto i : rv::iota(0, 10)) {
+            expect(that % queue.front().value() == i);
+            expect(that % queue.pop().value() == i);
+        }
+        expect(queue.empty());
+    };
 }
 
 int main()

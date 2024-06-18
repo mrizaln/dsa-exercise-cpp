@@ -14,8 +14,6 @@ namespace dsa
     template <typename T>
     concept ArrayElement = std::movable<T> or std::copyable<T>;
 
-    // TODO: make the array grow by itself when the element is full
-    // TODO: delegate the current constructor to default initializing fixed amount of elements at construction
     template <ArrayElement T>
     class ArrayList
     {
@@ -122,6 +120,8 @@ namespace dsa
             return *this;
         }
 
+        clear();
+
         m_buffer = std::exchange(other.m_buffer, {});
         m_size   = std::exchange(other.m_size, 0);
     }
@@ -133,7 +133,7 @@ namespace dsa
         , m_size{ other.m_size }
     {
         for (std::size_t i = 0; i < m_size; ++i) {
-            m_buffer.construct(i, other.m_buffer.at(i));
+            m_buffer.construct(i, auto{ other.m_buffer.at(i) });
         }
     }
 
@@ -144,6 +144,8 @@ namespace dsa
         if (this == &other) {
             return *this;
         }
+
+        clear();
 
         m_buffer = RawBuffer<T>{ other.m_buffer.size() };    // destroy the old buffer and create a new one
         m_size   = other.m_size;
