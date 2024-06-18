@@ -8,7 +8,7 @@
 namespace dsa
 {
     template <typename T>
-    concept DoublyLinkedListElement = std::default_initializable<T> and (std::movable<T> or std::copyable<T>);
+    concept DoublyLinkedListElement = std::movable<T> or std::copyable<T>;
 
     template <DoublyLinkedListElement T>
     struct DoublyListLink
@@ -295,7 +295,7 @@ namespace dsa
         m_head                  = std::move(next);
 
         --m_size;
-        return element;
+        return std::move(element);    // NRVO not working?
     }
 
     template <DoublyLinkedListElement T>
@@ -313,7 +313,7 @@ namespace dsa
         m_tail                = prev;
 
         --m_size;
-        return element;
+        return std::move(element);    // NRVO not working?
     }
 
     template <DoublyLinkedListElement T>

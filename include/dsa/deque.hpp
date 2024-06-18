@@ -10,7 +10,7 @@
 namespace dsa
 {
     template <typename T>
-    concept DequeElement = std::default_initializable<T> and (std::movable<T> or std::copyable<T>);
+    concept DequeElement = ArrayElement<T>;
 
     template <DequeElement T>
     class Deque

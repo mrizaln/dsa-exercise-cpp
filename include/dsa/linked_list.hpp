@@ -8,7 +8,7 @@
 namespace dsa
 {
     template <typename T>
-    concept LinkedListElement = std::default_initializable<T> and (std::movable<T> or std::copyable<T>);
+    concept LinkedListElement = std::movable<T> or std::copyable<T>;
 
     template <LinkedListElement T>
     struct ListLink
@@ -51,9 +51,6 @@ namespace dsa
         T& push_front(T&& element);
         T& push_back(T&& element);
         T  pop_front();
-
-        // NOTE: pop_back is a linear operation unlike the other operations, use with caution
-        T pop_back();
 
         // UB when m_head or m_tail nullptr
         T&       front() noexcept { return m_head->m_element; }
@@ -242,34 +239,6 @@ namespace dsa
         m_head       = std::move(m_head->m_next);
         --m_size;
         return element;
-    }
-
-    template <LinkedListElement T>
-    T LinkedList<T>::pop_back()
-    {
-        if (m_head == nullptr) {
-            throw std::out_of_range{ "List is empty" };
-        }
-
-        // one element
-        if (m_head.get() == m_tail) {
-            auto value = std::move(m_head->m_element);
-            m_head     = nullptr;
-            m_tail     = nullptr;
-            m_size     = 0;
-            return value;
-        }
-
-        Node* prev = nullptr;
-        for (auto current = m_head.get(); current != m_tail; current = current->m_next.get()) {
-            prev = current;
-        }
-
-        auto node = std::exchange(prev->m_next, nullptr);
-        m_tail    = prev;
-        --m_size;
-
-        return std::move(node->m_element);
     }
 
     template <LinkedListElement T>
