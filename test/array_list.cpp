@@ -1,3 +1,5 @@
+#include "test_util.hpp"
+
 #include <dsa/array_list.hpp>
 
 #include <boost/ut.hpp>
@@ -5,74 +7,31 @@
 #include <fmt/ranges.h>
 #include <fmt/std.h>
 
-#include <iterator>
 #include <ranges>
-#include <concepts>
-#include <random>
 
 namespace ut = boost::ut;
 namespace rr = std::ranges;
 namespace rv = rr::views;
 
-class NonTrivial
-{
-public:
-    // clang-format off
-    NonTrivial() = delete;      // deleted default constructor
-    NonTrivial(int value) : m_value(value) { }
+using test_util::equalUnderlying;
+using test_util::populateContainer;
 
-    NonTrivial(const NonTrivial& other)     : m_value(other.m_value) { }
-    NonTrivial(NonTrivial&& other) noexcept : m_value(other.m_value) { }
-
-    NonTrivial& operator=(const NonTrivial& other)     { m_value = other.m_value; return *this; }
-    NonTrivial& operator=(NonTrivial&& other) noexcept { m_value = other.m_value; return *this; }
-    int value() const { return m_value; }
-    // clang-format on
-
-    friend std::ostream& operator<<(std::ostream& os, const NonTrivial& nt) { return os << nt.value(); }
-    friend int           format_as(const NonTrivial& nt) { return nt.value(); }
-
-    auto operator<=>(const NonTrivial&) const = default;
-
-private:
-    int m_value = 0;
-};
-
-static_assert(std::movable<NonTrivial> and std::copyable<NonTrivial>);
-
-template <typename T>
-T random(T min, T max)
-{
-    thread_local static std::mt19937 gen{ std::random_device{}() };
-    if constexpr (std::is_floating_point_v<T>) {
-        return std::uniform_real_distribution<T>{ min, max }(gen);
-    } else {
-        return std::uniform_int_distribution<T>{ min, max }(gen);
-    }
-}
-
-template <typename T, std::ranges::range R>
-    requires std::convertible_to<std::ranges::range_value_t<R>, T>
-void populateList(dsa::ArrayList<T>& list, R&& range)
-{
-    for (auto value : range) {
-        list.push_back(std::move(value));
-    }
-}
-
-int main()
+// TODO: check whether copy happens on operations that should not copy (unless type is not movable, then copy
+// should happen)
+template <test_util::TestClass Type>
+void test()
 {
     using namespace ut::operators;
     using namespace ut::literals;
     using ut::expect, ut::that, ut::throws;
 
     "iterator should be a random access iterator"_test = [] {
-        using Iter = dsa::ArrayList<NonTrivial>::Iterator;
+        using Iter = dsa::ArrayList<Type>::Iterator;
         static_assert(std::random_access_iterator<Iter>);
     };
 
     "push_back should add an element to the end of the list"_test = [] {
-        dsa::ArrayList<NonTrivial> list{ 20 };
+        dsa::ArrayList<Type> list{ 20 };
 
         // first push
         auto size = list.size();
@@ -89,8 +48,8 @@ int main()
         expect(list.back().value() == 8_i);
         expect(list.front().value() == 42_i);
 
-        std::array<NonTrivial, 10> values = { 42, 0, 1, 2, 3, 4, 5, 6, 7, 8 };
-        rr::equal(list, values);
+        std::array values = { 42, 0, 1, 2, 3, 4, 5, 6, 7, 8 };
+        equalUnderlying<Type>(list, values);
 
         // push until full
         while (list.size() < 20) {
@@ -113,8 +72,8 @@ int main()
     };
 
     "pop_back should remove the last element from the list"_test = [] {
-        std::vector<NonTrivial>    values = { 42, 0, 1, 2, 3, 4, 5, 6, 7, 8 };
-        dsa::ArrayList<NonTrivial> list{ 20 };
+        std::vector<int>     values = { 42, 0, 1, 2, 3, 4, 5, 6, 7, 8 };
+        dsa::ArrayList<Type> list{ 20 };
         for (auto value : values) {
             list.push_back(std::move(value));
         }
@@ -145,8 +104,8 @@ int main()
     };
 
     "insert should inserts value at specified position"_test = [] {
-        std::vector<NonTrivial>    values = { 42, 0, 1, 2, 3, 4, 5, 6, 7, 8 };
-        dsa::ArrayList<NonTrivial> list{ 20 };
+        std::vector<int>     values = { 42, 0, 1, 2, 3, 4, 5, 6, 7, 8 };
+        dsa::ArrayList<Type> list{ 20 };
 
         // first insert
         list.insert(0, 42);
@@ -161,47 +120,47 @@ int main()
             list.insert(list.size(), i);
         }
         expect(list.size() == 10_i);
-        expect(rr::equal(list, values));
+        expect(equalUnderlying<Type>(list, values));
 
         // insertion in the middle
         list.pop_back();    // to reserve one space
         list.insert(5, -1);
 
-        expect(rr::equal(list | rv::take(4), values | rv::take(4)));
-        expect(list.at(5) == -1_i);
-        expect(rr::equal(list | rv::drop(6) | rv::take(4), values | rv::drop(5) | rv::take(4)));
+        expect(equalUnderlying<Type>(list | rv::take(4), values | rv::take(4)));
+        expect(list.at(5).value() == -1_i);
+        expect(equalUnderlying<Type>(list | rv::drop(6) | rv::take(4), values | rv::drop(5) | rv::take(4)));
     };
 
     "remove should removes value at specified position"_test = [] {
-        std::vector<NonTrivial>    values = { 42, 0, 1, 2, 3, 4, 5, 6, 7, 8 };
-        dsa::ArrayList<NonTrivial> list{ 20 };
+        std::vector<int>     values = { 42, 0, 1, 2, 3, 4, 5, 6, 7, 8 };
+        dsa::ArrayList<Type> list{ 20 };
         for (auto value : values) {
             list.push_back(std::move(value));
         }
         expect(that % list.size() == values.size());
 
         auto value = list.remove(5);
-        expect(that % value == values[5]);
+        expect(that % value.value() == values[5]);
         expect(list.size() == 9_i);
-        expect(rr::equal(list | rv::take(5), values | rv::take(5)));
-        expect(rr::equal(list | rv::drop(5) | rv::take(4), values | rv::drop(6) | rv::take(4)));
+        expect(equalUnderlying<Type>(list | rv::take(5), values | rv::take(5)));
+        expect(equalUnderlying<Type>(list | rv::drop(5) | rv::take(4), values | rv::drop(6) | rv::take(4)));
 
         list.clear();
         list.push_back(42);
 
         expect(throws([&] { list.remove(1); })) << "out of bound removal should throws";
-        expect(list.remove(0) == 42_i);
+        expect(list.remove(0).value() == 42_i);
         expect(list.size() == 0_i);
 
         expect(throws([&] { list.remove(0); })) << "removing element of an empty list";
     };
 
     "move should leave list into an empty state that is not usable"_test = [] {
-        dsa::ArrayList<NonTrivial> list{ 20 };
-        populateList(list, rv::iota(0, 10));
+        dsa::ArrayList<Type> list{ 20 };
+        populateContainer(list, rv::iota(0, 10));
 
         expect(list.size() == 10_i);
-        expect(rr::equal(list, rv::iota(0, 10)));
+        expect(equalUnderlying<Type>(list, rv::iota(0, 10)));
 
         auto list2 = std::move(list);
         expect(list.size() == 0_i);
@@ -210,19 +169,36 @@ int main()
         expect(throws([&] { list.push_back(42); })) << "should throw when push to empty list";
     };
 
-    "copy should copy each element exactly"_test = [] {
-        dsa::ArrayList<NonTrivial> list{ 20 };
-        populateList(list, rv::iota(0, 10));
+    if constexpr (std::copyable<Type>) {
+        "copy should copy each element exactly"_test = [] {
+            dsa::ArrayList<Type> list{ 20 };
+            populateContainer(list, rv::iota(0, 10));
 
-        expect(list.size() == 10_i);
-        expect(rr::equal(list, rv::iota(0, 10)));
+            expect(list.size() == 10_i);
+            expect(equalUnderlying<Type>(list, rv::iota(0, 10)));
 
-        auto list2 = list;
-        expect(list2.size() == 10_i);
-        expect(rr::equal(list2, list));
+            auto list2 = list;
+            expect(list2.size() == 10_i);
+            expect(rr::equal(list2, list));
 
-        auto list3 = list2;
-        expect(list3.size() == 10_i);
-        expect(rr::equal(list3, list));
-    };
+            auto list3 = list2;
+            expect(list3.size() == 10_i);
+            expect(rr::equal(list3, list));
+        };
+    }
+}
+
+int main()
+{
+    // main types
+    test<test_util::Regular>();
+    test<test_util::MovableOnly<>>();
+    test<test_util::CopyableOnly<>>();
+
+    // extra
+    test_util::forEachType<test_util::NonTrivialPermutations>([]<typename T>() {
+        if constexpr (dsa::ArrayElement<T>) {
+            test<T>();
+        }
+    });
 }
