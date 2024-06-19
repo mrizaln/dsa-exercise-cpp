@@ -5,6 +5,7 @@
 #include <fmt/std.h>
 
 #include <concepts>
+#include <limits>
 #include <ostream>
 #include <ranges>
 
@@ -79,30 +80,34 @@ namespace test_util
         NonTrivial(const NonTrivial& other)
             requires CopyConstructible
             : m_value{ other.m_value }
+            , m_stat{ other.m_stat }
         {
-            m_stat.m_copyCtorCount = other.m_stat.m_copyCtorCount + 1;
+            ++m_stat.m_copyCtorCount;
         }
 
         NonTrivial(NonTrivial&& other) noexcept
             requires MoveConstructible
-            : m_value{ other.m_value }
+            : m_value{ std::exchange(other.m_value, npos) }
+            , m_stat{ other.m_stat }
         {
-            m_stat.m_moveCtorCount = other.m_stat.m_moveCtorCount + 1;
+            ++m_stat.m_moveCtorCount;
         }
 
         NonTrivial& operator=(const NonTrivial& other)
             requires CopyAssignable
         {
-            m_value                  = other.m_value;
-            m_stat.m_copyAssignCount = other.m_stat.m_copyAssignCount + 1;
+            m_value = other.m_value;
+            m_stat  = other.m_stat;
+            ++m_stat.m_copyAssignCount;
             return *this;
         }
 
         NonTrivial& operator=(NonTrivial&& other) noexcept
             requires MoveAssignable
         {
-            m_value                  = other.m_value;
-            m_stat.m_moveAssignCount = other.m_stat.m_moveAssignCount + 1;
+            m_value = std::exchange(other.m_value, npos);
+            m_stat  = other.m_stat;
+            ++m_stat.m_moveAssignCount;
             return *this;
         }
 
@@ -117,7 +122,9 @@ namespace test_util
         auto operator==(const auto& other) const { return value() == other.value(); }
 
     private:
-        int                      m_value = 0;
+        static constexpr int npos = std::numeric_limits<int>::min();
+
+        int                      m_value = npos;
         mutable ClassStatCounter m_stat  = {};
     };
 
