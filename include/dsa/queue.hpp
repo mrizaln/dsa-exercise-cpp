@@ -44,7 +44,7 @@ namespace dsa
         template <typename... Args>
             requires std::constructible_from<Container, Args...>
         Queue(Args&&... args)
-            : m_container(std::forward<Args>(args)...)
+            : m_container{ std::forward<Args>(args)... }
         {
         }
 

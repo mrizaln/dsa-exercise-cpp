@@ -479,9 +479,23 @@ namespace dsa
             return *this;
         }
 
-        // TODO: add bounds checking
-        reference operator*() const { return m_buffer->m_buffer.at(m_index); };
-        pointer   operator->() const { return &m_buffer->m_buffer.at(m_index); };
+        reference operator*() const
+        {
+            if (m_buffer == nullptr || m_index == CircularBuffer::npos) {
+                throw std::out_of_range{ "Iterator is out of range" };
+            }
+
+            return m_buffer->m_buffer.at(m_index);
+        };
+
+        pointer operator->() const
+        {
+            if (m_buffer == nullptr || m_index == CircularBuffer::npos) {
+                throw std::out_of_range{ "Iterator is out of range" };
+            }
+
+            return &m_buffer->m_buffer.at(m_index);
+        };
 
     private:
         BufferPtr   m_buffer    = nullptr;

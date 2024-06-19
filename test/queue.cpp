@@ -40,7 +40,7 @@ void test()
             .m_capacity = dsa::BufferCapacityPolicy::FixedCapacity,
             .m_store    = dsa::BufferStorePolicy::ReplaceOldest,
         };
-        dsa::Queue<dsa::CircularBuffer, Type> queue3{ 10, policy };
+        dsa::Queue<dsa::CircularBuffer, Type> queue3{ 10uz, policy };
     };
 
     "Queue with LinkedList backend should be able to push and pop"_test = [] {
@@ -84,7 +84,7 @@ void test()
             .m_capacity = dsa::BufferCapacityPolicy::FixedCapacity,
             .m_store    = dsa::BufferStorePolicy::ReplaceOldest,
         };
-        dsa::Queue<dsa::CircularBuffer, Type> queue{ 10, policy };
+        dsa::Queue<dsa::CircularBuffer, Type> queue{ 10uz, policy };
 
         for (auto i : rv::iota(0, 10)) {
             auto& v = queue.push(i);

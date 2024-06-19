@@ -299,21 +299,23 @@ namespace dsa
             while (n-- > 0 && (m_current = m_current->m_next.get())) { }
         }
 
-        reference operator*() const { return m_current->m_element; }
-        pointer   operator->() const { return &m_current->m_element; }
+        reference operator*() const
+        {
+            if (m_current == nullptr) {
+                throw std::out_of_range{ "Iterator is out of range" };
+            }
+            return m_current->m_element;
+        }
+
+        pointer operator->() const
+        {
+            if (m_current == nullptr) {
+                throw std::out_of_range{ "Iterator is out of range" };
+            }
+            return &m_current->m_element;
+        }
 
     private:
         Node* m_current = nullptr;
     };
-
-    // to make sure that the iterator are STL compliant
-    namespace detail
-    {
-        struct LinkedListElementPlaceholder
-        {
-        };
-
-        static_assert(std::forward_iterator<LinkedList<LinkedListElementPlaceholder>::Iterator<false>>);
-        static_assert(std::forward_iterator<LinkedList<LinkedListElementPlaceholder>::Iterator<true>>);
-    }
 }

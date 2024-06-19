@@ -76,8 +76,8 @@ namespace dsa
         ReverseIterator<false> rend() { return { nullptr }; }
         ReverseIterator<true>  rbegin() const { return { m_head.get() }; }
         ReverseIterator<true>  rend() const { return { nullptr }; }
-        ReverseIterator<true>  rcbegin() const { return { m_head.get() }; }
-        ReverseIterator<true>  rcend() const { return { nullptr }; }
+        ReverseIterator<true>  crbegin() const { return { m_head.get() }; }
+        ReverseIterator<true>  crend() const { return { nullptr }; }
 
     private:
         std::unique_ptr<Node> m_head = nullptr;
@@ -388,8 +388,23 @@ namespace dsa
             while (n-- > 0 && (m_current = m_current->m_prev)) { }
         }
 
-        reference operator*() const { return m_current->m_element; }
-        pointer   operator->() const { return &m_current->m_element; }
+        reference operator*() const
+        {
+            if (m_current == nullptr) {
+                throw std::out_of_range{ "Iterator is out of range" };
+            }
+
+            return m_current->m_element;
+        }
+
+        pointer operator->() const
+        {
+            if (m_current == nullptr) {
+                throw std::out_of_range{ "Iterator is out of range" };
+            }
+
+            return &m_current->m_element;
+        }
 
     private:
         Node* m_current = nullptr;
