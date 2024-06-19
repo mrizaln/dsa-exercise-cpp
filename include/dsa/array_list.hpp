@@ -29,8 +29,8 @@ namespace dsa
         explicit ArrayList(std::size_t count)
             requires std::default_initializable<T>;
 
-        ArrayList(ArrayList&& other);
-        ArrayList& operator=(ArrayList&& other);
+        ArrayList(ArrayList&& other) noexcept;
+        ArrayList& operator=(ArrayList&& other) noexcept;
 
         ArrayList(const ArrayList& other)
             requires std::copyable<T>;
@@ -107,14 +107,14 @@ namespace dsa
     }
 
     template <ArrayElement T>
-    ArrayList<T>::ArrayList(ArrayList&& other)
+    ArrayList<T>::ArrayList(ArrayList&& other) noexcept
         : m_buffer{ std::exchange(other.m_buffer, {}) }
         , m_size{ std::exchange(other.m_size, 0) }
     {
     }
 
     template <ArrayElement T>
-    ArrayList<T>& ArrayList<T>::operator=(ArrayList&& other)
+    ArrayList<T>& ArrayList<T>::operator=(ArrayList&& other) noexcept
     {
         if (this == &other) {
             return *this;
@@ -124,6 +124,8 @@ namespace dsa
 
         m_buffer = std::exchange(other.m_buffer, {});
         m_size   = std::exchange(other.m_size, 0);
+
+        return *this;
     }
 
     template <ArrayElement T>
