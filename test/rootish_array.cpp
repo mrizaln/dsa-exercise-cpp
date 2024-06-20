@@ -3,8 +3,9 @@
 #include <dsa/rootish_array.hpp>
 
 #include <boost/ut.hpp>
-
 #include <fmt/core.h>
+
+#include <cassert>
 #include <ranges>
 
 namespace ut = boost::ut;
@@ -22,6 +23,8 @@ void test()
     using namespace ut::operators;
     using namespace ut::literals;
     using ut::expect, ut::that, ut::throws, ut::nothrow;
+
+    Type::resetActiveInstanceCount();
 
     "iterator should be a random access iterator"_test = [] {
         using Iter = dsa::RootishArray<Type>::template Iterator<false>;
@@ -242,6 +245,9 @@ void test()
             fmt::println("list [{}@{}]: {{\n{}}}", list.size(), list.blocks().size(), listStr);
         }
     };
+
+    // unbalanced constructor/destructor means there is a bug in the code
+    assert(Type::activeInstanceCount() == 0);
 }
 
 int main()

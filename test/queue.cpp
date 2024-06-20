@@ -9,6 +9,7 @@
 #include <boost/ut.hpp>
 #include <fmt/core.h>
 
+#include <cassert>
 #include <ranges>
 
 namespace ut = boost::ut;
@@ -21,6 +22,8 @@ void test()
     using namespace ut::operators;
     using namespace ut::literals;
     using ut::expect, ut::that, ut::throws, ut::nothrow;
+
+    Type::resetActiveInstanceCount();
 
     "LinkedList and DoublyLinkedList should be able to be used as Queue backend"_test = [] {
         static_assert(dsa::QueueCompatible<dsa::LinkedList, Type>);
@@ -100,6 +103,9 @@ void test()
         }
         expect(queue.empty());
     };
+
+    // unbalanced constructor/destructor means there is a bug in the code
+    assert(Type::activeInstanceCount() == 0);
 }
 
 int main()

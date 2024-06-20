@@ -5,6 +5,7 @@
 #include <boost/ut.hpp>
 #include <fmt/core.h>
 
+#include <cassert>
 #include <ranges>
 
 namespace ut = boost::ut;
@@ -17,6 +18,8 @@ void test()
     using namespace ut::operators;
     using namespace ut::literals;
     using ut::expect, ut::that;
+
+    Type::resetActiveInstanceCount();
 
     "nrvo should happen"_test = [] {
         dsa::RawBuffer<Type> buffer{ 10 };
@@ -45,6 +48,9 @@ void test()
             }
         }
     };
+
+    // unbalanced constructor/destructor means there is a bug in the code
+    assert(Type::activeInstanceCount() == 0);
 }
 
 int main()

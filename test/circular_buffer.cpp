@@ -7,6 +7,7 @@
 #include <fmt/ranges.h>
 #include <fmt/std.h>
 
+#include <cassert>
 #include <ranges>
 #include <concepts>
 
@@ -39,6 +40,8 @@ void test()
     using namespace ut::operators;
     using namespace ut::literals;
     using ut::expect, ut::that, ut::throws, ut::nothrow;
+
+    Type::resetActiveInstanceCount();
 
     "iterator should be a forward iterator"_test = [] {
         using Iter = dsa::CircularBuffer<Type>::template Iterator<false>;
@@ -217,6 +220,9 @@ void test()
             expect(rr::equal(buffer3, buffer));
         };
     }
+
+    // unbalanced constructor/destructor means there is a bug in the code
+    assert(Type::activeInstanceCount() == 0);
 }
 
 int main()

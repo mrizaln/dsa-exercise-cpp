@@ -4,6 +4,7 @@
 
 #include <boost/ut.hpp>
 
+#include <cassert>
 #include <ranges>
 
 namespace ut = boost::ut;
@@ -21,6 +22,8 @@ void test()
     using namespace ut::operators;
     using namespace ut::literals;
     using ut::expect, ut::that, ut::throws, ut::nothrow;
+
+    Type::resetActiveInstanceCount();
 
     "iterator should be a random access iterator"_test = [] {
         using Iter = dsa::ArrayList<Type>::Iterator;
@@ -204,6 +207,9 @@ void test()
             expect(rr::all_of(list, [](const auto& value) { return value.stat().defaulted(); }));
         };
     }
+
+    // unbalanced constructor/destructor means there is a bug in the code
+    assert(Type::activeInstanceCount() == 0);
 }
 
 int main()

@@ -66,15 +66,19 @@ namespace test_util
         static constexpr bool s_copyable = CopyConstructible and CopyAssignable;
         static constexpr bool s_default  = DefaultConstructible;
 
+        ~NonTrivial() { --s_activeInstanceCount; }
+
         NonTrivial()
             requires DefaultConstructible
         {
+            ++s_activeInstanceCount;
             m_stat.m_defaulted = true;
         }
 
         NonTrivial(int value)    // implicit conversion
             : m_value{ value }
         {
+            ++s_activeInstanceCount;
         }
 
         NonTrivial(const NonTrivial& other)
@@ -82,6 +86,7 @@ namespace test_util
             : m_value{ other.m_value }
             , m_stat{ other.m_stat }
         {
+            ++s_activeInstanceCount;
             ++m_stat.m_copyCtorCount;
         }
 
@@ -90,6 +95,7 @@ namespace test_util
             : m_value{ std::exchange(other.m_value, npos) }
             , m_stat{ other.m_stat }
         {
+            ++s_activeInstanceCount;
             ++m_stat.m_moveCtorCount;
         }
 
@@ -121,8 +127,12 @@ namespace test_util
         auto operator<=>(const auto& other) const { return value() <=> other.value(); }
         auto operator==(const auto& other) const { return value() == other.value(); }
 
+        static int  activeInstanceCount() { return s_activeInstanceCount; }
+        static void resetActiveInstanceCount() { s_activeInstanceCount = 0; }
+
     private:
-        static constexpr int npos = std::numeric_limits<int>::min();
+        static constexpr int npos                  = std::numeric_limits<int>::min();
+        static inline int    s_activeInstanceCount = 0;
 
         int                      m_value = npos;
         mutable ClassStatCounter m_stat  = {};

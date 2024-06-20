@@ -6,6 +6,7 @@
 #include <boost/ut.hpp>
 #include <fmt/core.h>
 
+#include <cassert>
 #include <ranges>
 
 namespace ut = boost::ut;
@@ -18,6 +19,8 @@ void test()
     using namespace ut::operators;
     using namespace ut::literals;
     using ut::expect, ut::that;
+
+    Type::resetActiveInstanceCount();
 
     "fixed_array construction"_test = [] {
         if constexpr (std::default_initializable<Type>) {
@@ -45,6 +48,9 @@ void test()
             expect(that % not element.stat().defaulted());
         }
     };
+
+    // unbalanced constructor/destructor means there is a bug in the code
+    assert(Type::activeInstanceCount() == 0);
 }
 
 int main()
