@@ -30,9 +30,6 @@ namespace dsa
         friend class Iterator<false>;
         friend class Iterator<true>;
 
-        template <bool IsConst>
-        using ReverseIterator = std::reverse_iterator<Iterator<IsConst>>;
-
         using Element = T;
         using Node    = DoublyListLink<T>;
 
@@ -67,20 +64,11 @@ namespace dsa
 
         std::size_t size() const noexcept { return m_size; }
 
-        Iterator<false> begin() { return { m_head.get() }; }
-        Iterator<false> end() { return { nullptr }; }
-        Iterator<true>  begin() const { return { m_head.get() }; }
-        Iterator<true>  end() const { return { nullptr }; }
-        Iterator<true>  cbegin() const { return { m_head.get() }; }
-        Iterator<true>  cend() const { return { nullptr }; }
+        auto begin(this auto&& self) noexcept { return makeIter<Iterator, decltype(self)>(self.m_head.get()); }
+        auto end(this auto&& self) noexcept { return makeIter<Iterator, decltype(self)>(nullptr);}
 
-        // reverse iterator
-        ReverseIterator<false> rbegin() { return { m_head.get() }; }
-        ReverseIterator<false> rend() { return { nullptr }; }
-        ReverseIterator<true>  rbegin() const { return { m_head.get() }; }
-        ReverseIterator<true>  rend() const { return { nullptr }; }
-        ReverseIterator<true>  crbegin() const { return { m_head.get() }; }
-        ReverseIterator<true>  crend() const { return { nullptr }; }
+        Iterator<true> cbegin() const noexcept { return begin(); }
+        Iterator<true> cend() const noexcept { return begin(); }
 
     private:
         std::unique_ptr<Node> m_head = nullptr;
@@ -377,7 +365,12 @@ namespace dsa
 
         Iterator& operator+=(difference_type n)
         {
-            while (n-- > 0 && (m_current = m_current->m_next.get())) { }
+            if (n < 0) {
+                return (*this) -= -n;
+            } else {
+                auto i = static_cast<std::size_t>(n);
+                while (i-- > 0 && (m_current = m_current->m_next.get())) { }
+            }
         }
 
         Iterator& operator--()
@@ -395,7 +388,12 @@ namespace dsa
 
         Iterator& operator-=(difference_type n)
         {
-            while (n-- > 0 && (m_current = m_current->m_prev)) { }
+            if (n < 0) {
+                return (*this) += -n;
+            } else {
+                auto i = static_cast<std::size_t>(n);
+                while (i-- > 0 && (m_current = m_current->m_prev)) { }
+            }
         }
 
         reference operator*() const

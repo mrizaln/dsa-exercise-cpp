@@ -61,14 +61,13 @@ namespace dsa
         auto&& front(this auto&& self);
         auto&& back(this auto&& self);
 
-        std::size_t size() const noexcept { return m_size; }
+        auto begin(this auto&& self) noexcept { return makeIter<Iterator, decltype(self)>(self.m_head.get()); }
+        auto end(this auto&& self) noexcept { return makeIter<Iterator, decltype(self)>(nullptr);}
 
-        Iterator<false> begin() { return { m_head.get() }; }
-        Iterator<false> end() { return { nullptr }; }
-        Iterator<true>  begin() const { return { m_head.get() }; }
-        Iterator<true>  end() const { return { nullptr }; }
-        Iterator<true>  cbegin() const { return { m_head.get() }; }
-        Iterator<true>  cend() const { return { nullptr }; }
+        Iterator<true> cbegin() const noexcept { return begin(); }
+        Iterator<true> cend() const noexcept { return begin(); }
+
+        std::size_t size() const noexcept { return m_size; }
 
     private:
         std::unique_ptr<Node> m_head = nullptr;

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "dsa/common.hpp"
+
 #include <concepts>
 #include <memory>
 #include <type_traits>
@@ -13,6 +15,10 @@ namespace dsa
     class FixedArray
     {
     public:
+        using Element = T;
+
+        using value_type = Element;    // STL compliance
+
         FixedArray()  = default;
         ~FixedArray() = default;
 
@@ -36,13 +42,14 @@ namespace dsa
             return { SizedTag{}, size };
         }
 
-        T*       data() noexcept { return m_data; }
-        const T* data() const noexcept { return m_data; }
+        auto*  data(this auto&& self) noexcept { return &self.at(0); }
+        auto&& at(this auto&& self, std::size_t pos) noexcept { return derefConst<T>(self.m_data, pos); }
 
-        T&       at(std::size_t pos) & noexcept { return m_data[pos]; }
-        T&&      at(std::size_t pos) && noexcept { return std::move(m_data[pos]); }
-        const T& at(std::size_t pos) const& noexcept { return m_data[pos]; }
-        const T& at(std::size_t pos) const&& noexcept { return m_data[pos]; }
+        auto* begin(this auto&& self) { return &self.at(0); }
+        auto* end(this auto&& self) { return &self.at(self.m_size); }
+
+        const T* cbegin() { return begin(); }
+        const T* cend() { return end(); }
 
         std::size_t size() const noexcept { return m_size; }
 

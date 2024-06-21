@@ -7,7 +7,7 @@
 #include <cstddef>
 #include <utility>
 
-#include "raw_buffer.hpp"
+#include "dsa/raw_buffer.hpp"
 
 namespace dsa
 {
@@ -18,8 +18,7 @@ namespace dsa
     class ArrayList
     {
     public:
-        using Element  = T;
-        using Iterator = T*;
+        using Element = T;
 
         using value_type = Element;    // STL compliance
 
@@ -69,6 +68,9 @@ namespace dsa
 
         auto* begin(this auto&& self) { return self.m_buffer.data(); }
         auto* end(this auto&& self) { return self.m_buffer.data() + self.m_size; }
+
+        const T* cbegin() { return begin(); }
+        const T* cend() { return end(); }
 
         std::size_t size() const noexcept { return m_size; }
         std::size_t capacity() const noexcept { return m_buffer.size(); }

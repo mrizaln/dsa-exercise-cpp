@@ -26,8 +26,13 @@ void test()
     Type::resetActiveInstanceCount();
 
     "iterator should be a random access iterator"_test = [] {
-        using Iter = dsa::ArrayList<Type>::Iterator;
-        static_assert(std::random_access_iterator<Iter>);
+        dsa::ArrayList<Type> array;
+
+        auto begin  = array.begin();
+        auto cbegin = array.cbegin();
+
+        static_assert(std::random_access_iterator<decltype(begin)>);
+        static_assert(std::random_access_iterator<decltype(cbegin)>);
     };
 
     "array_list with 0 capacity is usable"_test = [] {

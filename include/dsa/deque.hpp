@@ -2,8 +2,9 @@
 
 // NOTE: DualArrayDeque implementation based on reference 2
 
-#include "array_list.hpp"
-#include "stack.hpp"
+#include "dsa/array_list.hpp"
+#include "dsa/common.hpp"
+#include "dsa/stack.hpp"
 
 #include <concepts>
 
@@ -58,8 +59,7 @@ namespace dsa
 
         auto&& at(this auto&& self, std::size_t pos) noexcept;
 
-        std::pair<Backend&, Backend&>             underlying() noexcept { return { m_front, m_back }; }
-        std::pair<const Backend&, const Backend&> underlying() const noexcept { return { m_front, m_back }; }
+        auto underlying(this auto&& self) noexcept { return makePairRef(self.m_front, self.m_back); }
 
     private:
         Backend m_front;    // stores index 0            .. size / 2 - 1 (reversed)

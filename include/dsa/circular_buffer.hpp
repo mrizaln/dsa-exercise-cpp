@@ -2,6 +2,7 @@
 
 // NOTE: CircularArray implementation based on reference 1 and reference 2 (ArrayQueue)
 
+#include "dsa/common.hpp"
 #include "dsa/raw_buffer.hpp"
 
 #include <algorithm>
@@ -48,9 +49,6 @@ namespace dsa
 
         friend class Iterator<false>;
         friend class Iterator<true>;
-
-        template <bool IsConst>
-        using ReverseIterator = std::reverse_iterator<Iterator<IsConst>>;
 
         using Element    = T;
         using value_type = Element;    // STL compliance
@@ -102,12 +100,11 @@ namespace dsa
         auto&& front(this auto&& self) { return self.at(0); };
         auto&& back(this auto&& self);
 
-        Iterator<false> begin() noexcept { return { this, 0 }; }
-        Iterator<false> end() noexcept { return { this, npos }; }
-        Iterator<true>  begin() const noexcept { return { this, 0 }; }
-        Iterator<true>  end() const noexcept { return { this, npos }; }
-        Iterator<true>  cbegin() const noexcept { return { this, 0 }; }
-        Iterator<true>  cend() const noexcept { return { this, npos }; }
+        auto begin(this auto&& self) noexcept { return makeIter<Iterator, decltype(self)>(&self, 0uz); }
+        auto end(this auto&& self) noexcept { return makeIter<Iterator, decltype(self)>(&self, npos); }
+
+        Iterator<true> cbegin() const noexcept { return begin(); }
+        Iterator<true> cend() const noexcept { return begin(); }
 
     private:
         static constexpr std::size_t npos = std::numeric_limits<std::size_t>::max();
@@ -521,7 +518,9 @@ namespace dsa
 
         Iterator& operator+=(difference_type n)
         {
-            m_index += n;
+            // casted n possibly become very large if it was negative, but when it was added to m_pos, m_pos
+            // will wraparound anyway since it was unsigned
+            m_index += static_cast<std::size_t>(n);
 
             // detect wrap-around then set to sentinel value
             if (m_index >= m_size) {

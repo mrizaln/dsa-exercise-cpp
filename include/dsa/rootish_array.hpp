@@ -3,6 +3,7 @@
 // NOTE: RootishArray implementation based on reference 1 and reference 2 (ArrayQueue)
 
 #include "dsa/array_list.hpp"
+#include "dsa/common.hpp"
 
 #include <cmath>
 #include <concepts>
@@ -28,9 +29,6 @@ namespace dsa
 
         friend class Iterator<false>;
         friend class Iterator<true>;
-
-        template <bool IsConst>
-        using ReverseIterator = std::reverse_iterator<Iterator<IsConst>>;
 
         using Element    = T;
         using value_type = Element;    // STL compliance
@@ -64,20 +62,11 @@ namespace dsa
         std::size_t size() const noexcept;
         const auto& blocks() const noexcept { return m_blocks; }
 
-        Iterator<false> begin() { return { this, 0 }; }
-        Iterator<false> end() { return { this, npos }; }
-        Iterator<true>  begin() const { return { this, 0 }; }
-        Iterator<true>  end() const { return { this, npos }; }
-        Iterator<true>  cbegin() const { return { this, 0 }; }
-        Iterator<true>  cend() const { return { this, npos }; }
+        auto begin(this auto&& self) noexcept { return makeIter<Iterator, decltype(self)>(&self, 0uz); }
+        auto end(this auto&& self) noexcept { return makeIter<Iterator, decltype(self)>(&self, npos); }
 
-        // reverse iterator
-        ReverseIterator<false> rbegin() { return { this, 0 }; }
-        ReverseIterator<false> rend() { return { this, npos }; }
-        ReverseIterator<true>  rbegin() const { return { this, 0 }; }
-        ReverseIterator<true>  rend() const { return { this, npos }; }
-        ReverseIterator<true>  crbegin() const { return { this, 0 }; }
-        ReverseIterator<true>  crend() const { return { this, npos }; }
+        Iterator<true> cbegin() const noexcept { return begin(); }
+        Iterator<true> cend() const noexcept { return begin(); }
 
     private:
         struct ElementIndex
@@ -259,7 +248,9 @@ namespace dsa
 
         Iterator& operator+=(difference_type n)
         {
-            m_pos += n;
+            // casted n possibly become very large if it was negative, but when it was added to m_pos, m_pos
+            // will wraparound anyway since it was unsigned
+            m_pos += static_cast<std::size_t>(n);
 
             // detect wrap-around then set to sentinel value
             if (m_pos >= m_size) {

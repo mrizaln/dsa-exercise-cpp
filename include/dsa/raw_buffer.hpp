@@ -1,5 +1,7 @@
 #pragma once
 
+#include "dsa/common.hpp"
+
 #include <cassert>
 #include <cstddef>
 #include <algorithm>
@@ -37,13 +39,8 @@ namespace dsa
 
         void destroy(std::size_t offset) noexcept;
 
-        T*       data() noexcept { return m_data; }
-        const T* data() const noexcept { return m_data; }
-
-        T&       at(std::size_t pos) & noexcept { return m_data[pos]; }
-        T&&      at(std::size_t pos) && noexcept { return std::move(m_data[pos]); }
-        const T& at(std::size_t pos) const& noexcept { return m_data[pos]; }
-        const T& at(std::size_t pos) const&& noexcept { return m_data[pos]; }
+        auto*  data(this auto&& self) noexcept { return &self.at(0); }
+        auto&& at(this auto&& self, std::size_t pos) noexcept { return derefConst<T>(self.m_data, pos); }
 
         std::size_t size() const noexcept { return m_size; }
 
