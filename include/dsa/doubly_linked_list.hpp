@@ -2,6 +2,8 @@
 
 // NOTE: DoublyLinkedList implementation based on reference 1
 
+#include "dsa/common.hpp"
+
 #include <concepts>
 #include <memory>
 
@@ -42,8 +44,10 @@ namespace dsa
         DoublyLinkedList(DoublyLinkedList&& other) noexcept;
         DoublyLinkedList& operator=(DoublyLinkedList&& other) noexcept;
 
-        DoublyLinkedList(const DoublyLinkedList& other);
-        DoublyLinkedList& operator=(const DoublyLinkedList& other);
+        DoublyLinkedList(const DoublyLinkedList& other)
+            requires std::copyable<T>;
+        DoublyLinkedList& operator=(const DoublyLinkedList& other)
+            requires std::copyable<T>;
 
         void swap(DoublyLinkedList& other) noexcept;
         void clear() noexcept;
@@ -56,11 +60,10 @@ namespace dsa
         T  pop_front();
         T  pop_back();
 
-        // UB when m_head or m_tail nullptr
-        T&       front() noexcept { return m_head->m_element; }
-        T&       back() noexcept { return m_tail->m_element; }
-        const T& front() const noexcept { return m_head->m_element; }
-        const T& back() const noexcept { return m_tail->m_element; }
+        auto&& at(this auto&& self, std::size_t pos);
+        auto&& node(this auto&& self, std::size_t pos);
+        auto&& front(this auto&& self);
+        auto&& back(this auto&& self);
 
         std::size_t size() const noexcept { return m_size; }
 
@@ -102,6 +105,7 @@ namespace dsa
         , m_size{ std::exchange(other.m_size, 0) }
     {
     }
+
     template <DoublyLinkedListElement T>
     DoublyLinkedList<T>& DoublyLinkedList<T>::operator=(DoublyLinkedList&& other) noexcept
     {
@@ -116,6 +120,7 @@ namespace dsa
 
     template <DoublyLinkedListElement T>
     DoublyLinkedList<T>::DoublyLinkedList(const DoublyLinkedList& other)
+        requires std::copyable<T>
     {
         for (auto element : other) {
             push_back(std::move(element));
@@ -124,6 +129,7 @@ namespace dsa
 
     template <DoublyLinkedListElement T>
     DoublyLinkedList<T>& DoublyLinkedList<T>::operator=(const DoublyLinkedList& other)
+        requires std::copyable<T>
     {
         if (this == &other) {
             return *this;
@@ -168,41 +174,18 @@ namespace dsa
             return push_back(std::move(element));
         }
 
+        auto* prev = &node(pos - 1);
+        auto  next = std::move(prev->m_next);
+
         auto node = std::make_unique<Node>(std::move(element));
 
-        // approach from head
-        if (pos <= m_size / 2) {
-            auto* prev = m_head.get();
-            for (std::size_t i = 0; i < pos - 1; ++i) {
-                prev = prev->m_next.get();
-            }
-            auto next = std::move(prev->m_next);
+        node->m_prev = prev;
+        node->m_next = std::move(next);
 
-            node->m_prev = prev;
-            node->m_next = std::move(next);
+        prev->m_next = std::move(node);
 
-            prev->m_next = std::move(node);
-
-            ++m_size;
-            return prev->m_next->m_element;
-        }
-        // approach from tail
-        else {
-            auto* curr = m_tail;
-            for (std::size_t i = m_size - 1; i > pos; --i) {
-                curr = curr->m_prev;
-            }
-            auto* prev = curr->m_prev;
-            auto  next = std::move(prev->m_next);
-
-            node->m_prev = prev;
-            node->m_next = std::move(next);
-
-            prev->m_next = std::move(node);
-
-            ++m_size;
-            return prev->m_next->m_element;
-        }
+        ++m_size;
+        return prev->m_next->m_element;
     }
 
     template <DoublyLinkedListElement T>
@@ -218,35 +201,14 @@ namespace dsa
             return pop_back();
         }
 
-        // approach from head
-        if (pos <= m_size / 2) {
-            auto* prev = m_head.get();
-            for (std::size_t i = 0; i < pos - 1; ++i) {
-                prev = prev->m_next.get();
-            }
+        auto* prev = &node(pos - 1);
 
-            auto [element, next, _] = std::move(*prev->m_next);
-            next->m_prev            = prev;
-            prev->m_next            = std::move(next);
+        auto [element, next, _] = std::move(*prev->m_next);
+        next->m_prev            = prev;
+        prev->m_next            = std::move(next);
 
-            --m_size;
-            return std::move(element);    // NRVO not working?
-        }
-        // approach from tail
-        else {
-            auto* curr = m_tail;
-            for (std::size_t i = m_size - 1; i > pos; --i) {
-                curr = curr->m_prev;
-            }
-
-            auto* prev              = curr->m_prev;
-            auto [element, next, _] = std::move(*prev->m_next);
-            next->m_prev            = prev;
-            prev->m_next            = std::move(next);
-
-            --m_size;
-            return std::move(element);    // NRVO not working?
-        }
+        --m_size;
+        return std::move(element);    // NRVO not working?
     }
 
     template <DoublyLinkedListElement T>
@@ -314,6 +276,54 @@ namespace dsa
 
         --m_size;
         return std::move(element);    // NRVO not working?
+    }
+
+    template <DoublyLinkedListElement T>
+    auto&& DoublyLinkedList<T>::at(this auto&& self, std::size_t pos)
+    {
+        return self.node(pos).m_element;
+    }
+
+    template <DoublyLinkedListElement T>
+    auto&& DoublyLinkedList<T>::node(this auto&& self, std::size_t pos)
+    {
+        if (pos >= self.m_size) {
+            throw std::out_of_range{
+                std::format("Position is out of range: pos {} on size {}", pos, self.m_size)
+            };
+        }
+
+        if (pos <= self.m_size / 2) {
+            auto* current = self.m_head.get();
+            for (auto i = 0uz; i < pos; ++i) {
+                current = current->m_next.get();
+            }
+            return *current;
+        } else {
+            auto* current = self.m_tail;
+            for (auto i = self.m_size - 1; i > pos; --i) {
+                current = current->m_prev;
+            }
+            return *current;
+        }
+    }
+
+    template <DoublyLinkedListElement T>
+    auto&& DoublyLinkedList<T>::front(this auto&& self)
+    {
+        if (self.m_size == 0) {
+            throw std::out_of_range{ "LinkedList is empty" };
+        }
+        return derefConst<Node>(self.m_head).m_element;
+    }
+
+    template <DoublyLinkedListElement T>
+    auto&& DoublyLinkedList<T>::back(this auto&& self)
+    {
+        if (self.m_size == 0) {
+            throw std::out_of_range{ "LinkedList is empty" };
+        }
+        return derefConst<Node>(self.m_tail).m_element;
     }
 
     template <DoublyLinkedListElement T>

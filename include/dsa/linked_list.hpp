@@ -2,6 +2,8 @@
 
 // NOTE: LinkedList implementation based on reference 1
 
+#include "dsa/common.hpp"
+
 #include <concepts>
 #include <memory>
 
@@ -54,11 +56,10 @@ namespace dsa
         T& push_back(T&& element);
         T  pop_front();
 
-        // UB when m_head or m_tail nullptr
-        T&       front() noexcept { return m_head->m_element; }
-        T&       back() noexcept { return m_tail->m_element; }
-        const T& front() const noexcept { return m_head->m_element; }
-        const T& back() const noexcept { return m_tail->m_element; }
+        auto&& at(this auto&& self, std::size_t pos);
+        auto&& node(this auto&& self, std::size_t pos);
+        auto&& front(this auto&& self);
+        auto&& back(this auto&& self);
 
         std::size_t size() const noexcept { return m_size; }
 
@@ -162,12 +163,8 @@ namespace dsa
             return push_back(std::move(element));
         }
 
-        auto node = std::make_unique<Node>(std::move(element));
-
-        auto* prev = m_head.get();
-        for (std::size_t i = 0; i < pos - 1; ++i) {
-            prev = prev->m_next.get();
-        }
+        auto* prev = &node(pos - 1);
+        auto  node = std::make_unique<Node>(std::move(element));
 
         node->m_next = std::move(prev->m_next);
         prev->m_next = std::move(node);
@@ -187,13 +184,11 @@ namespace dsa
             return pop_front();
         }
 
-        auto* prev = m_head.get();
-        for (std::size_t i = 0; i < pos - 1; ++i) {
-            prev = prev->m_next.get();
-        }
+        auto* prev = &node(pos - 1);
 
         auto element = std::move(prev->m_next->m_element);
         prev->m_next = std::move(prev->m_next->m_next);
+
         --m_size;
         return element;
     }
@@ -243,6 +238,47 @@ namespace dsa
         m_head       = std::move(m_head->m_next);
         --m_size;
         return element;
+    }
+
+    template <LinkedListElement T>
+    auto&& LinkedList<T>::at(this auto&& self, std::size_t pos)
+    {
+        return self.node(pos).m_element;
+    }
+
+    template <LinkedListElement T>
+    auto&& LinkedList<T>::node(this auto&& self, std::size_t pos)
+    {
+        if (pos >= self.m_size) {
+            throw std::out_of_range{
+                std::format("Position is out of range: pos {} on size {}", pos, self.m_size)
+            };
+        }
+
+        auto* current = self.m_head.get();
+        for (auto i = 0uz; i < pos; ++i) {
+            current = current->m_next.get();
+        }
+
+        return *current;
+    }
+
+    template <LinkedListElement T>
+    auto&& LinkedList<T>::front(this auto&& self)
+    {
+        if (self.m_size == 0) {
+            throw std::out_of_range{ "LinkedList is empty" };
+        }
+        return derefConst<Node>(self.m_head).m_element;
+    }
+
+    template <LinkedListElement T>
+    auto&& LinkedList<T>::back(this auto&& self)
+    {
+        if (self.m_size == 0) {
+            throw std::out_of_range{ "LinkedList is empty" };
+        }
+        return derefConst<Node>(self.m_tail).m_element;
     }
 
     template <LinkedListElement T>

@@ -463,7 +463,9 @@ namespace dsa
     auto&& CircularBuffer<T>::at(this auto&& self, std::size_t pos)
     {
         if (pos >= self.size()) {
-            throw std::out_of_range{ "Index out of range" };
+            throw std::out_of_range{
+                std::format("Index is out of range: index {} on size {}", pos, self.size())
+            };
         }
 
         auto realpos = (self.m_head + pos) % self.capacity();
