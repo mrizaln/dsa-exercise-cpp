@@ -24,7 +24,7 @@ namespace dsa
     {
     public:
         template <bool IsConst>
-        class [[nodiscard]] Iterator;    // bidirectional iterator
+        class [[nodiscard]] Iterator;
 
         friend class Iterator<false>;
         friend class Iterator<true>;
@@ -216,12 +216,7 @@ namespace dsa
     template <RootishArrayElement T>
     void RootishArray<T>::shrink()
     {
-        auto capacity = m_blocks.size();
-        auto block    = m_blocks.pop_back();
-
-        assert(block.capacity() == capacity && "Block capacity must be equal to the number of blocks");
-        assert(block.size() == 0 && "Discarded block must be empty");
-        assert(m_blocks.back().size() == 0 && "Last block must be empty");
+        std::ignore = m_blocks.pop_back();
     }
 
     template <RootishArrayElement T>

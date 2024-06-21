@@ -244,6 +244,12 @@ void test()
             }
             fmt::println("list [{}@{}]: {{\n{}}}", list.size(), list.blocks().size(), listStr);
         }
+
+        // check the values
+        fmt::println("stat for {}:", ut::reflection::type_name<Type>());
+        for (const auto& value : list) {
+            fmt::print("\t{}\n", value.stat());
+        }
     };
 
     // unbalanced constructor/destructor means there is a bug in the code
@@ -259,7 +265,7 @@ int main()
 
     // extra
     test_util::forEachType<test_util::NonTrivialPermutations>([]<typename T>() {
-        if constexpr (dsa::ArrayElement<T>) {
+        if constexpr (dsa::RootishArrayElement<T>) {
             test<T>();
         }
     });
