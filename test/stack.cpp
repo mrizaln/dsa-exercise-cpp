@@ -24,15 +24,13 @@ void test()
 
     Type::resetActiveInstanceCount();
 
-    "ArrayList, LinkedList, and DoublyLinkedList should be able to be used as Stack backend"_test = [] {
-        static_assert(dsa::StackCompatible<dsa::ArrayList, Type>);
-        static_assert(dsa::StackCompatible<dsa::LinkedList, Type>);
-        static_assert(dsa::StackCompatible<dsa::DoublyLinkedList, Type>);
-    };
-
-    "CircularBuffer should not be able to be used as Stack backend"_test = [] {
-        static_assert(not dsa::StackCompatible<dsa::CircularBuffer, Type>);
-    };
+    "ArrayList, LinkedList, and DoublyLinkedList, and CircularBuffer should be able to be used as Stack backend"_test
+        = [] {
+              static_assert(dsa::StackCompatible<dsa::ArrayList, Type>);
+              static_assert(dsa::StackCompatible<dsa::LinkedList, Type>);
+              static_assert(dsa::StackCompatible<dsa::DoublyLinkedList, Type>);
+              static_assert(dsa::StackCompatible<dsa::CircularBuffer, Type>);
+          };
 
     "Stack should be able to be constructed with a backend"_test = [] {
         dsa::Stack<dsa::ArrayList, Type>        stack;    // dynamic capacity

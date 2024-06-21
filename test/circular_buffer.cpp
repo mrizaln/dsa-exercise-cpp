@@ -17,6 +17,7 @@ namespace rv = rr::views;
 
 using test_util::equalUnderlying;
 using test_util::populateContainer;
+using test_util::populateContainerFront;
 using test_util::subrange;
 
 template <typename T>
@@ -26,8 +27,8 @@ std::string compare(const dsa::CircularBuffer<T>& buffer)
 }
 
 constexpr auto g_policyPermutations = std::tuple{
-    dsa::BufferPolicy{ dsa::BufferCapacityPolicy::FixedCapacity, dsa::BufferStorePolicy::ReplaceOldest },
-    dsa::BufferPolicy{ dsa::BufferCapacityPolicy::DynamicCapacity, dsa::BufferStorePolicy::ReplaceOldest },
+    dsa::BufferPolicy{ dsa::BufferCapacityPolicy::FixedCapacity, dsa::BufferStorePolicy::ReplaceOnFull },
+    dsa::BufferPolicy{ dsa::BufferCapacityPolicy::DynamicCapacity, dsa::BufferStorePolicy::ReplaceOnFull },
     dsa::BufferPolicy{ dsa::BufferCapacityPolicy::FixedCapacity, dsa::BufferStorePolicy::ThrowOnFull },
     dsa::BufferPolicy{ dsa::BufferCapacityPolicy::DynamicCapacity, dsa::BufferStorePolicy::ThrowOnFull },
 };
@@ -45,10 +46,10 @@ void test()
 
     "iterator should be a forward iterator"_test = [] {
         using Iter = dsa::CircularBuffer<Type>::template Iterator<false>;
-        static_assert(std::forward_iterator<Iter>);
+        static_assert(std::random_access_iterator<Iter>);
 
         using ConstIter = dsa::CircularBuffer<Type>::template Iterator<true>;
-        static_assert(std::forward_iterator<ConstIter>);
+        static_assert(std::random_access_iterator<ConstIter>);
     };
 
     "push_back should add an element to the back"_test = [](dsa::BufferPolicy policy) {
@@ -82,10 +83,10 @@ void test()
         expect(buffer.size() == 10_i);
     } | g_policyPermutations;
 
-    "push_back with ReplaceOldest policy should replace the oldest element when buffer is full"_test = [] {
+    "push_back with ReplaceOnFullepolicy should replace the adjacent element when buffer is full"_test = [] {
         dsa::BufferPolicy policy{
             .m_capacity = dsa::BufferCapacityPolicy::FixedCapacity,
-            .m_store    = dsa::BufferStorePolicy::ReplaceOldest,
+            .m_store    = dsa::BufferStorePolicy::ReplaceOnFull,
         };
         dsa::CircularBuffer<Type> buffer{ 10, policy };
 
@@ -137,21 +138,125 @@ void test()
                 .m_capacity = dsa::BufferCapacityPolicy::DynamicCapacity,
                 .m_store    = storePolicy,
             };
-            dsa::CircularBuffer<Type> buffer2{ 10, policy };
+            dsa::CircularBuffer<Type> buffer{ 10, policy };
 
             // fully populate buffer
-            populateContainer(buffer2, rv::iota(0, 10));
-            expect(buffer2.size() == 10_i);
-            expect(that % buffer2.size() == buffer2.capacity());
-            expect(equalUnderlying<Type>(buffer2, rv::iota(0, 10)));
+            populateContainer(buffer, rv::iota(0, 10));
+            expect(buffer.size() == 10_i);
+            expect(that % buffer.size() == buffer.capacity());
+            expect(equalUnderlying<Type>(buffer, rv::iota(0, 10)));
 
-            expect(nothrow([&] { buffer2.push_back(42); })) << "should not throw when push to full buffer";
-            expect(buffer2.back().value() == 42_i);
-            expect(buffer2.size() == 11_i);
-            expect(buffer2.capacity() > 10_i);
-            expect(equalUnderlying<Type>(subrange(buffer2, 0, 10), rv::iota(0, 10)));
+            expect(nothrow([&] { buffer.push_back(42); })) << "should not throw when push to full buffer";
+            expect(buffer.back().value() == 42_i);
+            expect(buffer.size() == 11_i);
+            expect(buffer.capacity() > 10_i);
+            expect(equalUnderlying<Type>(subrange(buffer, 0, 10), rv::iota(0, 10)));
         }
-        | std::tuple{ dsa::BufferStorePolicy::ReplaceOldest, dsa::BufferStorePolicy::ThrowOnFull };
+        | std::tuple{ dsa::BufferStorePolicy::ReplaceOnFull, dsa::BufferStorePolicy::ThrowOnFull };
+
+    "push_front should add an element to the front"_test = [](dsa::BufferPolicy policy) {
+        dsa::CircularBuffer<Type> buffer{ 10, policy };    // default policy
+
+        // first push
+        auto  size  = buffer.size();
+        auto& value = buffer.push_front(42);
+        expect(that % buffer.size() == size + 1);
+        expect(value.value() == 42_i);
+        expect(buffer.front().value() == 42_i);
+        expect(buffer.back().value() == 42_i);
+
+        for (auto i : rv::iota(0, 9)) {
+            auto& value = buffer.push_front(i);
+            expect(that % value.value() == i);
+            expect(that % buffer.front().value() == i) << compare(buffer);
+            expect(that % buffer.back().value() == 42);
+        }
+
+        std::array expected{ 42, 0, 1, 2, 3, 4, 5, 6, 7, 8 };
+        expect(equalUnderlying<Type>(buffer | rv::reverse, expected)) << compare(buffer);
+
+        buffer.clear();
+        expect(buffer.size() == 0_i);
+
+        rr::fill_n(std::back_inserter(buffer), 10, 42);
+        for (const auto& value : buffer) {
+            expect(value.value() == 42_i);
+        }
+        expect(buffer.size() == 10_i);
+    } | g_policyPermutations;
+
+    "push_front with ReplaceOnFullepolicy should replace the adjacent element when buffer is full"_test = [] {
+        dsa::BufferPolicy policy{
+            .m_capacity = dsa::BufferCapacityPolicy::FixedCapacity,
+            .m_store    = dsa::BufferStorePolicy::ReplaceOnFull,
+        };
+        dsa::CircularBuffer<Type> buffer{ 10, policy };
+
+        // fully populate buffer
+        populateContainerFront(buffer, rv::iota(0, 10));
+        expect(buffer.size() == 10_i);
+        expect(that % buffer.size() == buffer.capacity());
+        expect(equalUnderlying<Type>(buffer | rv::reverse, rv::iota(0, 10))) << compare(buffer);
+
+        // replace old elements (4 times)
+        for (auto i : rv::iota(21, 25)) {
+            auto& value = buffer.push_front(i);
+            expect(that % value.value() == i);
+            expect(that % buffer.front().value() == i);
+            expect(buffer.capacity() == 10_i);
+            expect(buffer.size() == 10_i);
+        }
+
+        // the circular-buffer iterator
+        auto rbuffer = buffer | rv::reverse;
+        expect(equalUnderlying<Type>(subrange(rbuffer, 0, 6), rv::iota(0, 10) | rv::drop(4)));
+        expect(equalUnderlying<Type>(subrange(rbuffer, 6, 10), rv::iota(21, 25))) << compare(buffer);
+
+        // the underlying array
+        auto runderlying = std::span{ buffer.data(), buffer.capacity() } | rv::reverse;
+        expect(equalUnderlying<Type>(subrange(runderlying, 0, 4), rv::iota(21, 25))) << compare(buffer);
+        expect(equalUnderlying<Type>(subrange(runderlying, 4, 10), rv::iota(0, 10) | rv::drop(4)))
+            << compare(buffer);
+    };
+
+    "push_front with ThrowOnFull policy should throw when buffer is full"_test = [] {
+        dsa::BufferPolicy policy{
+            .m_capacity = dsa::BufferCapacityPolicy::FixedCapacity,
+            .m_store    = dsa::BufferStorePolicy::ThrowOnFull,
+        };
+        dsa::CircularBuffer<Type> buffer{ 10, policy };
+
+        // fully populate buffer
+        populateContainerFront(buffer, rv::iota(0, 10));
+        expect(buffer.size() == 10_i);
+        expect(that % buffer.size() == buffer.capacity());
+        expect(equalUnderlying<Type>(buffer | rv::reverse, rv::iota(0, 10))) << compare(buffer);
+
+        expect(throws([&] { buffer.push_front(42); })) << "should throw when push to full buffer";
+    };
+
+    "push_front with DynamicCapacity should never replace old elements nor throws on a full buffer"_test =
+        [](dsa::BufferStorePolicy storePolicy) {
+            dsa::BufferPolicy policy{
+                .m_capacity = dsa::BufferCapacityPolicy::DynamicCapacity,
+                .m_store    = storePolicy,
+            };
+            dsa::CircularBuffer<Type> buffer{ 10, policy };
+
+            // fully populate buffer
+            populateContainerFront(buffer, rv::iota(0, 10));
+            expect(buffer.size() == 10_i);
+            expect(that % buffer.size() == buffer.capacity());
+            expect(equalUnderlying<Type>(buffer | rv::reverse, rv::iota(0, 10))) << compare(buffer);
+
+            // TODO: fix test
+            expect(nothrow([&] { buffer.push_front(42); })) << "should not throw when push to full buffer";
+            expect(buffer.front().value() == 42_i);
+            expect(buffer.size() == 11_i);
+            expect(buffer.capacity() > 10_i);
+            expect(equalUnderlying<Type>(subrange(buffer | rv::reverse, 0, 10), rv::iota(0, 10)));
+        }
+        | std::tuple{ dsa::BufferStorePolicy::ReplaceOnFull, dsa::BufferStorePolicy::ThrowOnFull };
 
     "pop_front should remove the first element on the buffer"_test = [](dsa::BufferPolicy policy) {
         std::vector<int>          values = { 42, 0, 1, 2, 3, 4, 5, 6, 7, 8 };

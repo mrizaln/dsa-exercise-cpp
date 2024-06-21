@@ -41,7 +41,7 @@ void test()
 
         dsa::BufferPolicy policy{
             .m_capacity = dsa::BufferCapacityPolicy::FixedCapacity,
-            .m_store    = dsa::BufferStorePolicy::ReplaceOldest,
+            .m_store    = dsa::BufferStorePolicy::ReplaceOnFull,
         };
         dsa::Queue<dsa::CircularBuffer, Type> queue3{ 10uz, policy };
     };
@@ -85,7 +85,7 @@ void test()
     "Queue with CircularBuffer backend should be able to push and pop"_test = [] {
         dsa::BufferPolicy policy{
             .m_capacity = dsa::BufferCapacityPolicy::FixedCapacity,
-            .m_store    = dsa::BufferStorePolicy::ReplaceOldest,
+            .m_store    = dsa::BufferStorePolicy::ReplaceOnFull,
         };
         dsa::Queue<dsa::CircularBuffer, Type> queue{ 10uz, policy };
 

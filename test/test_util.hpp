@@ -214,6 +214,15 @@ namespace test_util
         }
     }
 
+    template <template <typename> typename C, typename T, std::ranges::range R>
+        requires std::convertible_to<std::ranges::range_value_t<R>, T>
+    void populateContainerFront(C<T>& list, R&& range)
+    {
+        for (auto value : range) {
+            list.push_front(std::move(value));
+        }
+    }
+
     template <test_util::TestClass Type, std::ranges::range R1, std::ranges::range R2>
         requires std::same_as<std::ranges::range_value_t<R1>, Type>
               && std::same_as<std::ranges::range_value_t<R2>, int>

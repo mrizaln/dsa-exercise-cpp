@@ -23,8 +23,8 @@ namespace dsa
 
     enum class BufferStorePolicy
     {
-        ReplaceOldest,
-        ThrowOnFull,
+        ReplaceOnFull,    // push_front/push_back will replace the element adjacent to m_head/m_tail
+        ThrowOnFull,      // throw an exception if push_front/push_back performed on a full buffer
     };
 
     enum class BufferResizePolicy
@@ -36,11 +36,9 @@ namespace dsa
     struct BufferPolicy
     {
         BufferCapacityPolicy m_capacity = BufferCapacityPolicy::FixedCapacity;
-        BufferStorePolicy    m_store    = BufferStorePolicy::ReplaceOldest;
+        BufferStorePolicy    m_store    = BufferStorePolicy::ReplaceOnFull;
     };
 
-    // TODO: add the ability to push to/pop from front and add bidirectional_iterator support (it would be
-    //       better if it would also support random_access_iterator)
     template <CircularBufferElement T>
     class CircularBuffer
     {
@@ -51,8 +49,10 @@ namespace dsa
         friend class Iterator<false>;
         friend class Iterator<true>;
 
-        using Element = T;
+        template <bool IsConst>
+        using ReverseIterator = std::reverse_iterator<Iterator<IsConst>>;
 
+        using Element    = T;
         using value_type = Element;    // STL compliance
 
         CircularBuffer() = default;
@@ -82,8 +82,10 @@ namespace dsa
         ) noexcept;
 
         // snake-case to be able to use std functions like std::back_inserter
+        T& push_front(T&& value);
         T& push_back(T&& value);
         T  pop_front();
+        T  pop_back();
 
         CircularBuffer& linearize() noexcept;
 
@@ -96,15 +98,16 @@ namespace dsa
         std::size_t capacity() const noexcept { return m_buffer.size(); }
 
         auto*  data(this auto&& self) noexcept { return self.m_buffer.data(); }
-        auto&& front(this auto&& self) noexcept { return self.m_buffer.at(self.m_head); }
-        auto&& back(this auto&& self) noexcept;
+        auto&& at(this auto&& self, std::size_t pos);
+        auto&& front(this auto&& self) { return self.at(0); };
+        auto&& back(this auto&& self);
 
-        Iterator<false> begin() noexcept { return { this, m_head }; }
-        Iterator<false> end() noexcept { return { this, m_tail }; }
-        Iterator<true>  begin() const noexcept { return { this, m_head }; }
-        Iterator<true>  end() const noexcept { return { this, m_tail }; }
-        Iterator<true>  cbegin() const noexcept { return { this, m_head }; }
-        Iterator<true>  cend() const noexcept { return { this, m_tail }; }
+        Iterator<false> begin() noexcept { return { this, 0 }; }
+        Iterator<false> end() noexcept { return { this, npos }; }
+        Iterator<true>  begin() const noexcept { return { this, 0 }; }
+        Iterator<true>  end() const noexcept { return { this, npos }; }
+        Iterator<true>  cbegin() const noexcept { return { this, 0 }; }
+        Iterator<true>  cend() const noexcept { return { this, npos }; }
 
     private:
         static constexpr std::size_t npos = std::numeric_limits<std::size_t>::max();
@@ -178,7 +181,7 @@ namespace dsa
 
         m_buffer = std::exchange(other.m_buffer, {});
         m_head   = std::exchange(other.m_head, 0);
-        m_tail   = std::exchange(other.m_tail, 0);
+        m_tail   = std::exchange(other.m_tail, npos);
         m_policy = std::exchange(other.m_policy, {});
 
         return *this;
@@ -204,7 +207,7 @@ namespace dsa
     void CircularBuffer<T>::clear() noexcept
     {
         for (auto i = 0uz; i < size(); ++i) {
-            m_buffer.destroy((m_head + i) % size());
+            m_buffer.destroy((m_head + i) % capacity());
         }
 
         m_head = 0;
@@ -238,7 +241,7 @@ namespace dsa
         if (newCapacity > capacity()) {
             RawBuffer<T> buffer{ newCapacity };
             for (auto i = 0uz; i < size(); ++i) {
-                auto idx = (m_head + i) % size();
+                auto idx = (m_head + i) % capacity();
                 buffer.construct(i, std::move(m_buffer.at(idx)));
                 m_buffer.destroy(i);
             }
@@ -294,21 +297,59 @@ namespace dsa
         }
     }
 
+    template <CircularBufferElement T>
+    T& CircularBuffer<T>::push_front(T&& value)
+    {
+        if (capacity() == 0) {
+            if (m_policy.m_capacity == BufferCapacityPolicy::DynamicCapacity) {
+                resize(1, BufferResizePolicy::DiscardOld);
+            } else {
+                throw std::logic_error{ "Can't push to a buffer with zero capacity" };
+            }
+        }
+
+        if (m_tail == npos) {
+            if (m_policy.m_capacity == BufferCapacityPolicy::DynamicCapacity) {
+                resize(capacity() * 2, BufferResizePolicy::DiscardOld);
+            } else if (m_policy.m_store == BufferStorePolicy::ThrowOnFull) {
+                throw std::out_of_range{ "Buffer is full" };
+            }
+        }
+
+        auto current = m_head == 0 ? capacity() - 1 : m_head - 1;
+
+        if (m_tail != npos) {
+            m_buffer.construct(current, std::move(value));
+            m_head = current;
+            if (current == m_tail) {
+                m_tail = npos;
+            }
+        } else {
+            m_buffer.at(current) = std::move(value);
+            m_head               = current;
+        }
+
+        return m_buffer.at(current);
+    }
+
     // snake-case to be able to use std functions like std::back_inserter
     template <CircularBufferElement T>
     T& CircularBuffer<T>::push_back(T&& value)
     {
         if (capacity() == 0) {
-            throw std::logic_error{ "Can't push to a buffer with zero capacity" };
+            if (m_policy.m_capacity == BufferCapacityPolicy::DynamicCapacity) {
+                resize(1, BufferResizePolicy::DiscardOld);
+            } else {
+                throw std::logic_error{ "Can't push to a buffer with zero capacity" };
+            }
         }
 
-        if (m_tail == npos && m_policy.m_capacity == BufferCapacityPolicy::DynamicCapacity) {
-            resize(capacity() * 2, BufferResizePolicy::DiscardOld);
-        }
-
-        // m_tail is checked again here since call to resize() above will modify it
-        if (m_tail == npos && m_policy.m_store == BufferStorePolicy::ThrowOnFull) {
-            throw std::out_of_range{ "Buffer is full" };
+        if (m_tail == npos) {
+            if (m_policy.m_capacity == BufferCapacityPolicy::DynamicCapacity) {
+                resize(capacity() * 2, BufferResizePolicy::DiscardOld);
+            } else if (m_policy.m_store == BufferStorePolicy::ThrowOnFull) {
+                throw std::out_of_range{ "Buffer is full" };
+            }
         }
 
         auto current = m_head;
@@ -359,6 +400,29 @@ namespace dsa
     }
 
     template <CircularBufferElement T>
+    T CircularBuffer<T>::pop_back()
+    {
+        // TODO: implement
+        if (size() == 0) {
+            throw std::out_of_range{ "Buffer is empty" };
+        }
+
+        auto index = m_tail == npos ? (m_head == 0 ? capacity() - 1 : m_head - 1)
+                                    : (m_tail == 0 ? capacity() - 1 : m_tail - 1);
+
+        auto value = std::move(m_buffer.at(index));
+        m_buffer.destroy(index);
+
+        m_tail = index;
+
+        if (m_policy.m_capacity == BufferCapacityPolicy::DynamicCapacity and size() == capacity() / 4) {
+            resize(capacity() / 2, BufferResizePolicy::DiscardOld);
+        }
+
+        return value;
+    }
+
+    template <CircularBufferElement T>
     CircularBuffer<T>& CircularBuffer<T>::linearize() noexcept
     {
         if (m_head == 0 && m_tail == npos) {
@@ -396,13 +460,23 @@ namespace dsa
     }
 
     template <CircularBufferElement T>
-    auto&& CircularBuffer<T>::back(this auto&& self) noexcept
+    auto&& CircularBuffer<T>::at(this auto&& self, std::size_t pos)
     {
-        return self.m_buffer.at(
-            self.m_tail == npos    //
-                ? (self.m_head + self.capacity() - 1) % self.capacity()
-                : self.m_tail - 1
-        );
+        if (pos >= self.size()) {
+            throw std::out_of_range{ "Index out of range" };
+        }
+
+        auto realpos = (self.m_head + pos) % self.capacity();
+        return self.m_buffer.at(realpos);
+    }
+
+    template <CircularBufferElement T>
+    auto&& CircularBuffer<T>::back(this auto&& self)
+    {
+        if (self.size() == 0) {
+            throw std::out_of_range{ "Buffer is empty" };
+        }
+        return self.at(self.size() - 1);
     }
 
     template <CircularBufferElement T>
@@ -411,7 +485,7 @@ namespace dsa
     {
     public:
         // STL compatibility
-        using iterator_category = std::forward_iterator_tag;
+        using iterator_category = std::random_access_iterator_tag;
         using value_type        = typename CircularBuffer::Element;
         using difference_type   = std::ptrdiff_t;
         using pointer           = std::conditional_t<IsConst, const value_type*, value_type*>;
@@ -425,10 +499,10 @@ namespace dsa
         Iterator(Iterator&&) noexcept            = default;
         Iterator& operator=(Iterator&&) noexcept = default;
 
-        Iterator(BufferPtr buffer, std::size_t current)
+        Iterator(BufferPtr buffer, std::size_t current) noexcept
             : m_buffer{ buffer }
             , m_index{ current }
-            , m_lastIndex{ m_index }
+            , m_size{ buffer->size() }
         {
         }
 
@@ -436,47 +510,49 @@ namespace dsa
         Iterator(Iterator<false>& other)
             : m_buffer{ other.m_buffer }
             , m_index{ other.m_index }
-            , m_lastIndex{ other.m_lastIndex }
+            , m_size{ other.m_size }
         {
         }
 
-        template <bool IsConst2>
-        bool operator==(const Iterator<IsConst2>& other) const
+        // just a pointer comparison
+        auto operator<=>(const Iterator&) const = default;
+
+        Iterator& operator+=(difference_type n)
         {
-            return m_buffer == other.m_buffer && m_index == other.m_index;
-        }
+            m_index += n;
 
-        Iterator& operator++()
-        {
-            if (m_index == CircularBuffer::npos) {
-                return *this;
-            }
-
-            if (++m_index == m_buffer->capacity()) {
-                m_index = 0;
-            }
-
-            if (m_index == m_lastIndex) {
+            // detect wrap-around then set to sentinel value
+            if (m_index >= m_size) {
                 m_index = CircularBuffer::npos;
             }
 
             return *this;
         }
 
-        Iterator operator++(int)
+        Iterator& operator-=(difference_type n)
         {
-            Iterator tmp = *this;
-            ++(*this);
-            return tmp;
-        }
-
-        Iterator& operator+=(difference_type n)
-        {
-            while (n-- > 0 && m_index != CircularBuffer::npos) {
-                ++(*this);
+            if (m_index == CircularBuffer::npos) {
+                m_index = m_size;
             }
 
-            return *this;
+            return (*this) += -n;
+        }
+
+        Iterator& operator++() { return (*this) += 1; }
+        Iterator& operator--() { return (*this) -= 1; }
+
+        Iterator operator++(int)
+        {
+            auto copy = *this;
+            ++(*this);
+            return copy;
+        }
+
+        Iterator operator--(int)
+        {
+            auto copy = *this;
+            --(*this);
+            return copy;
         }
 
         reference operator*() const
@@ -484,8 +560,7 @@ namespace dsa
             if (m_buffer == nullptr || m_index == CircularBuffer::npos) {
                 throw std::out_of_range{ "Iterator is out of range" };
             }
-
-            return m_buffer->m_buffer.at(m_index);
+            return m_buffer->at(m_index);
         };
 
         pointer operator->() const
@@ -494,12 +569,26 @@ namespace dsa
                 throw std::out_of_range{ "Iterator is out of range" };
             }
 
-            return &m_buffer->m_buffer.at(m_index);
+            return &m_buffer->at(m_index);
         };
 
+        reference operator[](difference_type n) const { return *(*this + n); }
+
+        friend Iterator operator+(const Iterator& lhs, difference_type n) { return auto{ lhs } += n; }
+        friend Iterator operator+(difference_type n, const Iterator& rhs) { return rhs + n; }
+        friend Iterator operator-(const Iterator& lhs, difference_type n) { return auto{ lhs } -= n; }
+
+        friend difference_type operator-(const Iterator& lhs, const Iterator& rhs)
+        {
+            auto lpos = lhs.m_index == CircularBuffer::npos ? lhs.m_size : lhs.m_index;
+            auto rpos = rhs.m_index == CircularBuffer::npos ? rhs.m_size : rhs.m_index;
+
+            return static_cast<difference_type>(lpos) - static_cast<difference_type>(rpos);
+        }
+
     private:
-        BufferPtr   m_buffer    = nullptr;
-        std::size_t m_index     = 0;
-        std::size_t m_lastIndex = m_index;
+        BufferPtr   m_buffer = nullptr;
+        std::size_t m_index  = CircularBuffer::npos;
+        std::size_t m_size   = 0;
     };
 }
