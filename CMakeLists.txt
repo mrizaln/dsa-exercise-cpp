@@ -29,10 +29,6 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     target_link_options(${NAME} PRIVATE -fsanitize=address,leak,undefined)
 
     add_test(NAME ${NAME} COMMAND $<TARGET_FILE:${NAME}>)
-    add_custom_command(
-      TARGET ${NAME}
-      POST_BUILD
-      COMMAND ${NAME})
   endfunction()
 
   enable_testing()
@@ -46,5 +42,6 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
   make_test(raw_buffer)
   make_test(fixed_array)
   make_test(rootish_array)
+  make_test(blocky_linked_list)
 
 endif()
