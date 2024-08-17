@@ -64,8 +64,11 @@ namespace dsa
 
         std::size_t size() const noexcept { return m_size; }
 
-        auto begin(this auto&& self) noexcept { return makeIter<Iterator, decltype(self)>(self.m_head.get()); }
-        auto end(this auto&& self) noexcept { return makeIter<Iterator, decltype(self)>(nullptr);}
+        auto begin(this auto&& self) noexcept
+        {
+            return makeIter<Iterator, decltype(self)>(self.m_head.get());
+        }
+        auto end(this auto&& self) noexcept { return makeIter<Iterator, decltype(self)>(nullptr); }
 
         Iterator<true> cbegin() const noexcept { return begin(); }
         Iterator<true> cend() const noexcept { return begin(); }

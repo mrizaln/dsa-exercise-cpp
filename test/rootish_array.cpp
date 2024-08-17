@@ -217,9 +217,14 @@ void test()
 
         dsa::RootishArray<Type> list{};
         for (auto i : rv::iota(0uz, operations.size())) {
-            for (auto j : rv::iota(0uz, (std::size_t)operations.at(i))) {
+            auto operation = operations.at(i);
+            for (auto j : rv::iota(0uz, static_cast<std::size_t>(operation))) {
                 if (i % 2 == 0) {
-                    list.push_back(int(j + i + (std::size_t)operations.at(i) / 3uz));
+                    if (static_cast<int>(j) <= operation / 2) {
+                        list.push_back(int(j + i + (std::size_t)operation / 3uz));
+                    } else {
+                        list.insert(test_util::random(0uz, list.size()), static_cast<int>(operation));
+                    }
                 } else {
                     list.pop_back();
                 }
