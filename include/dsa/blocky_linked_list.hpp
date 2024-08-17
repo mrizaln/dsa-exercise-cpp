@@ -110,39 +110,6 @@ namespace dsa
 
         auto blocks() const { return std::ranges::subrange{ head(), tail()++ }; }
 
-        std::size_t canReach(Node& left, Node& right) const
-        {
-            auto count = 0uz;
-            for (auto iterleft = &left; iterleft != nullptr; iterleft = iterleft->m_next.get()) {
-                ++count;
-                if (iterleft == &right) {
-                    return count - 1;
-                }
-            }
-
-            // count = 0;
-            // for (auto iterright = &right; iterright != nullptr; iterright = iterright->m_prev) {
-            //     ++count;
-            //     if (iterright == &left) {
-            //         return count;
-            //     }
-            // }
-
-            return static_cast<std::size_t>(-1);
-        }
-        std::size_t canReachRight(Node& left, Node& right) const
-        {
-            auto count = 0uz;
-            for (auto iterright = &right; iterright != nullptr; iterright = iterright->m_prev) {
-                ++count;
-                if (iterright == &left) {
-                    return count;
-                }
-            }
-
-            return static_cast<std::size_t>(-1);
-        }
-
         bool isInList(Node& node)
         {
             for (auto* current = m_head.get(); current != nullptr; current = current->m_next.get()) {
@@ -186,6 +153,34 @@ namespace dsa
         Node&           initHead();
         void            spread(Node& from, Node& until);
         void            gather(Node& node);
+
+#ifndef NDEBUG
+        std::size_t canReach(Node& left, Node& right) const
+        {
+            auto count = 0uz;
+            for (auto iterleft = &left; iterleft != nullptr; iterleft = iterleft->m_next.get()) {
+                ++count;
+                if (iterleft == &right) {
+                    return count - 1;
+                }
+            }
+
+            return static_cast<std::size_t>(-1);
+        }
+
+        std::size_t canReachRight(Node& left, Node& right) const
+        {
+            auto count = 0uz;
+            for (auto iterright = &right; iterright != nullptr; iterright = iterright->m_prev) {
+                ++count;
+                if (iterright == &left) {
+                    return count;
+                }
+            }
+
+            return static_cast<std::size_t>(-1);
+        }
+#endif
 
         std::pair<Node&, InsertScenario> determineInsertScenario(Node& node);
         std::pair<Node&, RemoveScenario> determineRemoveScenario(Node& node);
@@ -295,10 +290,9 @@ namespace dsa
         assert(isInList(node) and "node is not in the list! how can this happen?");
         assert(isInList(rnode) and "node is not in the list! how can this happen?");
 
-        auto distLeft  = canReach(node, rnode);
-        auto distRight = canReachRight(node, rnode);
         assert(
-            distLeft != static_cast<std::size_t>(-1) and distRight != static_cast<std::size_t>(-1)
+            canReach(node, rnode) != static_cast<std::size_t>(-1)             //
+            and canReachRight(node, rnode) != static_cast<std::size_t>(-1)    //
             and "newNode should be reachable"
         );
 
@@ -334,15 +328,7 @@ namespace dsa
             gather(node);
         }
 
-        T value = [&] {
-            try {
-                return node.m_block.remove(offset);
-            } catch (std::exception& e) {
-                fmt::println("exception: {}", e.what());
-                std::raise(SIGTRAP);
-                throw;
-            }
-        }();
+        auto value = node.m_block.remove(offset);
         --m_size;
 
         Node* current = &node;
@@ -558,15 +544,12 @@ namespace dsa
         assert(node == &until);
         auto& newNode = insertNodeBefore(until);
 
-        auto distLeft  = canReach(from, newNode);
-        auto distRight = canReachRight(from, newNode);
-
         assert(
-            distLeft != static_cast<std::size_t>(-1) and distRight != static_cast<std::size_t>(-1)
+            canReach(from, newNode) != static_cast<std::size_t>(-1)             //
+            and canReachRight(from, newNode) != static_cast<std::size_t>(-1)    //
             and "newNode should be reachable"
         );
 
-        auto count = 0uz;
         for (Node* current = &newNode; current != &from; current = current->m_prev) {
             assert(current != nullptr && "node should not be null");
             auto innercount = 0uz;
@@ -576,7 +559,6 @@ namespace dsa
                 current->m_block.push_front(std::move(prev->m_block.pop_back()));
                 ++innercount;
             }
-            ++count;
         }
     }
 
