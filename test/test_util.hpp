@@ -7,7 +7,9 @@
 #include <concepts>
 #include <limits>
 #include <ostream>
+#include <random>
 #include <ranges>
+#include <type_traits>
 
 namespace test_util
 {
@@ -231,5 +233,32 @@ namespace test_util
         namespace rr = std::ranges;
         namespace rv = std::views;
         return rr::equal(actual | rv::transform(&Type::value), expected);
+    }
+
+    template <typename T>
+        requires std::is_fundamental_v<T>
+    T random(T min, T max)
+    {
+        static std::mt19937 mt{ std::random_device{}() };
+        if constexpr (std::integral<T>) {
+            std::uniform_int_distribution<T> dist{ min, max };
+            return dist(mt);
+        } else if (std::floating_point<T>) {
+            std::uniform_real_distribution<T> dist{ min, max };
+            return dist(mt);
+        }
+    }
+
+    template <typename T>
+        requires std::is_fundamental_v<T>
+    T random(T min, T max, std::mt19937& rng)
+    {
+        if constexpr (std::integral<T>) {
+            std::uniform_int_distribution<T> dist{ min, max };
+            return dist(rng);
+        } else if (std::floating_point<T>) {
+            std::uniform_real_distribution<T> dist{ min, max };
+            return dist(rng);
+        }
     }
 }
