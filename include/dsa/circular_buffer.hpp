@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <concepts>
+#include <cstddef>
 #include <limits>
 #include <optional>
 #include <utility>
@@ -32,6 +33,13 @@ namespace dsa
     {
         DiscardOld,
         DiscardNew,
+    };
+
+    // only apply when BufferCapacityPolicy == FixedCapacity and BufferStorePolicy == ReplaceOnFull
+    enum class BufferInsertPolicy
+    {
+        DiscardHead,    // discard the head element when the buffer is full
+        DiscardTail,    // discard the tail element when the buffer is full
     };
 
     struct BufferPolicy
@@ -67,7 +75,6 @@ namespace dsa
             requires std::copyable<T>;
 
         void swap(CircularBuffer& other) noexcept;
-        void reset() noexcept;
         void clear() noexcept;
 
         void resize(std::size_t newCapacity, BufferResizePolicy policy = BufferResizePolicy::DiscardOld);
@@ -78,6 +85,9 @@ namespace dsa
             std::optional<BufferCapacityPolicy> storagePolicy,
             std::optional<BufferStorePolicy>    storePolicy
         ) noexcept;
+
+        T& insert(std::size_t pos, T&& value, BufferInsertPolicy policy = BufferInsertPolicy::DiscardHead);
+        T  remove(std::size_t pos);
 
         // snake-case to be able to use std functions like std::back_inserter
         T& push_front(T&& value);
@@ -113,6 +123,9 @@ namespace dsa
         std::size_t  m_head   = 0;
         std::size_t  m_tail   = npos;
         BufferPolicy m_policy = {};
+
+        std::size_t increment(std::size_t& index);
+        std::size_t decrement(std::size_t& index);
     };
 }
 
@@ -191,13 +204,6 @@ namespace dsa
         std::swap(m_head, other.m_head);
         std::swap(m_tail, other.m_tail);
         std::swap(m_policy, other.m_policy);
-    }
-
-    template <CircularBufferElement T>
-    void CircularBuffer<T>::reset() noexcept
-    {
-        m_head = 0;
-        m_tail = 0;
     }
 
     template <CircularBufferElement T>
@@ -295,6 +301,94 @@ namespace dsa
     }
 
     template <CircularBufferElement T>
+    T& CircularBuffer<T>::insert(std::size_t pos, T&& value, BufferInsertPolicy policy)
+    {
+        if (capacity() == 0) {
+            if (m_policy.m_capacity == BufferCapacityPolicy::DynamicCapacity) {
+                resize(1, BufferResizePolicy::DiscardOld);
+            } else {
+                throw std::logic_error{ "Can't push to a buffer with zero capacity" };
+            }
+        }
+
+        if (m_tail == npos) {
+            if (m_policy.m_capacity == BufferCapacityPolicy::DynamicCapacity) {
+                resize(capacity() * 2, BufferResizePolicy::DiscardOld);
+            } else if (m_policy.m_store == BufferStorePolicy::ThrowOnFull) {
+                throw std::out_of_range{ "Buffer is full" };
+            }
+        }
+
+        if (m_tail == npos) {
+            switch (policy) {
+            case dsa::BufferInsertPolicy::DiscardHead: pop_front(); break;
+            case dsa::BufferInsertPolicy::DiscardTail: pop_back(); break;
+            }
+        }
+        pos = (m_head + pos) % capacity();
+
+        // TODO: each element shifted towards the right, but it can be optimized to conditionally shift to the
+        // left or to the right depending on the position
+
+        auto current = m_tail;
+        T*   element = nullptr;
+
+        if (pos != m_tail) {
+            auto prev = current;
+            m_buffer.construct(current, std::move(m_buffer.at(decrement(prev))));
+            current = prev;
+
+            while (current != pos) {
+                auto prev            = current;
+                m_buffer.at(current) = std::move(m_buffer.at(decrement(prev)));
+                current              = prev;
+            }
+            element = &(m_buffer.at(current) = std::move(value));
+        } else {
+            element = &(m_buffer.construct(current, std::move(value)));
+        }
+
+        if (increment(m_tail) == m_head) {
+            m_tail = npos;
+        }
+
+        return *element;
+    }
+
+    template <CircularBufferElement T>
+    T CircularBuffer<T>::remove(std::size_t pos)
+    {
+        if (pos >= size()) {
+            throw std::out_of_range{ std::format(
+                "Cannot remove at position greater than or equal to size; pos: {}, size: {}", pos, size()
+            ) };
+        }
+
+        const auto count   = size() - pos - 1;
+        auto       realpos = (m_head + pos) % capacity();
+        auto       value   = std::move(m_buffer.at(realpos));
+
+        for (auto i = 0uz; i < count; ++i) {
+            auto current         = (realpos + i) % capacity();
+            auto next            = (realpos + i + 1) % capacity();
+            m_buffer.at(current) = std::move(m_buffer.at(next));
+        }
+
+        m_buffer.destroy((realpos + count) % capacity());
+
+        if (m_tail == npos) {
+            m_tail = m_head;
+        }
+        decrement(m_tail);
+
+        if (m_policy.m_capacity == BufferCapacityPolicy::DynamicCapacity and size() == capacity() / 4) {
+            resize(capacity() / 2, BufferResizePolicy::DiscardOld);
+        }
+
+        return value;
+    }
+
+    template <CircularBufferElement T>
     T& CircularBuffer<T>::push_front(T&& value)
     {
         if (capacity() == 0) {
@@ -355,18 +449,13 @@ namespace dsa
         if (m_tail != npos) {
             current = m_tail;
             m_buffer.construct(current, std::move(value));    // new entry -> construct
-            if (++m_tail == capacity()) {
-                m_tail = 0;
-            }
-            if (m_tail == m_head) {
+            if (increment(m_tail) == m_head) {
                 m_tail = npos;
             }
         } else {
             current              = m_head;
             m_buffer.at(current) = std::move(value);    // already existing entry -> assign
-            if (++m_head == capacity()) {
-                m_head = 0;
-            }
+            increment(m_head);
         }
 
         return m_buffer.at(current);
@@ -385,9 +474,7 @@ namespace dsa
         if (m_tail == npos) {
             m_tail = m_head;
         }
-        if (++m_head == capacity()) {
-            m_head = 0;
-        }
+        increment(m_head);
 
         if (m_policy.m_capacity == BufferCapacityPolicy::DynamicCapacity and size() == capacity() / 4) {
             resize(capacity() / 2, BufferResizePolicy::DiscardOld);
@@ -476,6 +563,24 @@ namespace dsa
             throw std::out_of_range{ "Buffer is empty" };
         }
         return self.at(self.size() - 1);
+    }
+
+    template <CircularBufferElement T>
+    std::size_t CircularBuffer<T>::increment(std::size_t& index)
+    {
+        if (++index == capacity()) {
+            index = 0;
+        }
+        return index;
+    }
+
+    template <CircularBufferElement T>
+    std::size_t CircularBuffer<T>::decrement(std::size_t& index)
+    {
+        if (index-- == 0) {
+            index = capacity() - 1;
+        }
+        return index;
     }
 
     template <CircularBufferElement T>

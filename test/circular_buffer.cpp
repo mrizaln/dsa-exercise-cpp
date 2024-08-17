@@ -10,6 +10,7 @@
 #include <cassert>
 #include <ranges>
 #include <concepts>
+#include <vector>
 
 namespace ut = boost::ut;
 namespace rr = std::ranges;
@@ -23,7 +24,7 @@ using test_util::subrange;
 template <typename T>
 std::string compare(const dsa::CircularBuffer<T>& buffer)
 {
-    return fmt::format("{} vs u {}", buffer, std::span{ buffer.data(), buffer.size() });
+    return fmt::format("{} vs u {}", buffer, std::span{ buffer.data(), buffer.capacity() });
 }
 
 constexpr auto g_policyPermutations = std::tuple{
@@ -33,8 +34,10 @@ constexpr auto g_policyPermutations = std::tuple{
     dsa::BufferPolicy{ dsa::BufferCapacityPolicy::DynamicCapacity, dsa::BufferStorePolicy::ThrowOnFull },
 };
 
-// TODO: check whether copy happens on operations that should not copy (unless type is not movable, then copy
-// should happen)
+// TODO: check whether copy happens on operations that should not copy (unless type is not movable)
+// TODO: add test for pop_front on DynamicCapacity policy; check when will it double or halve its capacity
+// TODO: add test for edge case: 1 digit capacity
+// TODO: add test for insertion with DiscardTail policy and DynamicCapacity and ThrowOnFull + FixedCapacity
 template <test_util::TestClass Type>
 void test()
 {
@@ -44,7 +47,7 @@ void test()
 
     Type::resetActiveInstanceCount();
 
-    "iterator should be a forward iterator"_test = [] {
+    "iterator should be a random access iterator iterator"_test = [] {
         using Iter = dsa::CircularBuffer<Type>::template Iterator<false>;
         static_assert(std::random_access_iterator<Iter>);
 
@@ -249,7 +252,6 @@ void test()
             expect(that % buffer.size() == buffer.capacity());
             expect(equalUnderlying<Type>(buffer | rv::reverse, rv::iota(0, 10))) << compare(buffer);
 
-            // TODO: fix test
             expect(nothrow([&] { buffer.push_front(42); })) << "should not throw when push to full buffer";
             expect(buffer.front().value() == 42_i);
             expect(buffer.size() == 11_i);
@@ -282,7 +284,73 @@ void test()
         expect(throws([&] { buffer.pop_front(); })) << "should throw when pop from empty buffer";
     } | g_policyPermutations;
 
-    // TODO: add test for pop_front on DynamicCapacity policy; check when will it double or halve its capacity
+    "insertion in the middle should move the elements around with FixedCapacity and ReplaceOnFull"_test = [] {
+        // full buffer condition
+        {
+            dsa::CircularBuffer<Type> buffer{ 10 };    // default policy
+            populateContainer(buffer, rv::iota(0, 10));
+
+            buffer.insert(3, 42, dsa::BufferInsertPolicy::DiscardHead);
+            expect(buffer.size() == 10_i);
+            expect(equalUnderlying<Type>(subrange(buffer, 0, 3), rv::iota(1, 4))) << compare(buffer);
+            expect(buffer.at(3).value() == 42_i) << compare(buffer);
+            expect(equalUnderlying<Type>(subrange(buffer, 4, 10), rv::iota(4, 10))) << compare(buffer);
+
+            auto expected = std::vector{ 1, 2, 3, 42, 4, 5, 6, 7, 8, 9 };
+            expect(equalUnderlying<Type>(buffer, expected)) << compare(buffer);
+
+            buffer.insert(0, 42, dsa::BufferInsertPolicy::DiscardHead);
+            expected = std::vector{ 42, 2, 3, 42, 4, 5, 6, 7, 8, 9 };
+            expect(equalUnderlying<Type>(buffer, expected)) << compare(buffer);
+
+            buffer.insert(9, 32748, dsa::BufferInsertPolicy::DiscardHead);
+            expected = std::vector{ 2, 3, 42, 4, 5, 6, 7, 8, 9, 32748 };
+            expect(equalUnderlying<Type>(buffer, expected)) << compare(buffer);
+        }
+
+        // partially filled buffer condition
+        {
+            dsa::CircularBuffer<Type> buffer{ 10 };    // default policy
+            populateContainer(buffer, rv::iota(0, 15));
+            for (auto _ : rv::iota(0, 5)) {
+                buffer.pop_front();
+            }
+
+            auto expected = std::vector{ 10, 11, 12, 13, 14 };
+            expect(equalUnderlying<Type>(buffer, expected)) << compare(buffer);
+
+            buffer.insert(2, -42, dsa::BufferInsertPolicy::DiscardHead);
+            expected = std::vector{ 10, 11, -42, 12, 13, 14 };
+            expect(equalUnderlying<Type>(buffer, expected)) << compare(buffer);
+
+            buffer.insert(0, -42, dsa::BufferInsertPolicy::DiscardHead);
+            expected = std::vector{ -42, 10, 11, -42, 12, 13, 14 };
+            buffer.insert(buffer.size(), -42, dsa::BufferInsertPolicy::DiscardHead);
+        }
+    };
+
+    "removal should be able to remove value anywhere in the buffer"_test = [] {
+        dsa::CircularBuffer<Type> buffer{ 10 };    // default policy
+        populateContainer(buffer, rv::iota(0, 15));
+        std::vector expected{ 5, 6, 7, 8, 9, 10, 11, 12, 13, 14 };
+        expect(equalUnderlying<Type>(buffer, expected)) << compare(buffer);
+
+        auto value = buffer.remove(3);
+        expected   = std::vector{ 5, 6, 7, 9, 10, 11, 12, 13, 14 };
+        expect(value.value() == 8_i);
+        expect(equalUnderlying<Type>(buffer, expected)) << compare(buffer);
+
+        auto end = buffer.size() - 1;
+        value    = buffer.remove(end);
+        expected = std::vector{ 5, 6, 7, 9, 10, 11, 12, 13 };
+        expect(value.value() == 14_i);
+        expect(equalUnderlying<Type>(buffer, expected)) << compare(buffer);
+
+        value    = buffer.remove(0);
+        expected = std::vector{ 6, 7, 9, 10, 11, 12, 13 };
+        expect(value.value() == 5_i);
+        expect(equalUnderlying<Type>(buffer, expected)) << compare(buffer);
+    };
 
     "default initialized CircularBuffer is basically useless"_test = [] {
         dsa::CircularBuffer<int> buffer;
@@ -291,8 +359,6 @@ void test()
         expect(throws([&] { buffer.push_back(42); })) << "should throw when push to empty buffer";
         expect(throws([&] { buffer.pop_front(); })) << "should throw when pop from empty buffer";
     };
-
-    // TODO: add test for edge case: 1 digit capacity
 
     "move should leave buffer into an empty state that is not usable"_test = [] {
         dsa::CircularBuffer<Type> buffer{ 20 };
