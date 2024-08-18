@@ -191,14 +191,12 @@ namespace test_util
         NonTrivial<0, 0, 0, 0, 0>>;
 
     template <typename Tuple, typename Fn>
-    inline constexpr auto forEachType(Fn&& f)
+    inline constexpr auto forEach(Fn&& fn)
     {
-        constexpr std::size_t N = std::tuple_size_v<Tuple>;
-
-        auto handler = [&, f = std::forward<Fn>(f)]<std::size_t... I>(std::index_sequence<I...>) {
-            (f.template operator()<std::tuple_element_t<I, Tuple>>(), ...);
+        const auto handler = [&]<std::size_t... I>(std::index_sequence<I...>) {
+            (fn.template operator()<std::tuple_element_t<I, Tuple>>(), ...);
         };
-        handler(std::make_index_sequence<N>());
+        handler(std::make_index_sequence<std::tuple_size_v<Tuple>>());
     }
 
     auto subrange(auto&& range, std::size_t start, std::size_t end)

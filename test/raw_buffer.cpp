@@ -55,11 +55,11 @@ void test()
 
 int main()
 {
-    // main types
+#ifdef DSA_TEST_EXTRA_TYPES
+    test_util::forEach<test_util::NonTrivialPermutations>([]<typename T>() { test<T>(); });
+#else
     test<test_util::Regular>();
     test<test_util::MovableOnly<>>();
     test<test_util::CopyableOnly<>>();
-
-    // extra
-    test_util::forEachType<test_util::NonTrivialPermutations>([]<typename T>() { test<T>(); });
+#endif
 }
