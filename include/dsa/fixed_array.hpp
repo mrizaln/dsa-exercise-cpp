@@ -43,7 +43,7 @@ namespace dsa
         }
 
         auto*  data(this auto&& self) noexcept { return &self.at(0); }
-        auto&& at(this auto&& self, std::size_t pos) noexcept { return derefConst<T>(self.m_data, pos); }
+        auto&& at(this auto&& self, std::size_t pos) noexcept { return deref<T>(self.m_data, pos); }
 
         auto* begin(this auto&& self) { return &self.at(0); }
         auto* end(this auto&& self) { return &self.at(self.m_size); }

@@ -268,7 +268,7 @@ namespace dsa
         if (self.m_size == 0) {
             throw std::out_of_range{ "LinkedList is empty" };
         }
-        return derefConst<Node>(self.m_head).m_element;
+        return deref<Node>(self.m_head).m_element;
     }
 
     template <LinkedListElement T>
@@ -277,7 +277,7 @@ namespace dsa
         if (self.m_size == 0) {
             throw std::out_of_range{ "LinkedList is empty" };
         }
-        return derefConst<Node>(self.m_tail).m_element;
+        return deref<Node>(self.m_tail).m_element;
     }
 
     template <LinkedListElement T>

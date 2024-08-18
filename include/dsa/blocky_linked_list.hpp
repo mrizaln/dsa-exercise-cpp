@@ -303,13 +303,11 @@ namespace dsa
         }
         case InsertScenario::EndOfList: [[fallthrough]];
         case InsertScenario::Shift: {
-            auto count = 0uz;
             for (Node* current = &rnode; current != &node; current = current->m_prev) {
                 assert(current != nullptr && "node should not be null");
                 Node* prev = current->m_prev;
                 assert(prev != nullptr && "node should not be null");
                 current->m_block.push_front(std::move(prev->m_block.pop_back()));
-                ++count;
             }
         } break;
         }
@@ -552,12 +550,10 @@ namespace dsa
 
         for (Node* current = &newNode; current != &from; current = current->m_prev) {
             assert(current != nullptr && "node should not be null");
-            auto innercount = 0uz;
             while (current->m_block.size() < m_blockSize) {
                 Node* prev = current->m_prev;
                 assert(prev != nullptr && "node should not be null");
                 current->m_block.push_front(std::move(prev->m_block.pop_back()));
-                ++innercount;
             }
         }
     }

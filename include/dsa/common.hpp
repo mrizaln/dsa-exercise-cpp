@@ -24,7 +24,7 @@ namespace dsa
     // dereference From while propagating the constness of From to the dereferenced type (To)
     template <typename To, typename From>
         requires Dereferencable<From, To>
-    decltype(auto) derefConst(From&& from)
+    decltype(auto) deref(From&& from)
     {
         if constexpr (std::is_const_v<std::remove_reference_t<From>>) {
             return std::as_const(*from);
@@ -35,7 +35,7 @@ namespace dsa
 
     template <typename To, typename From>
         requires Indexable<From, To>
-    decltype(auto) derefConst(From&& from, std::size_t i)
+    decltype(auto) deref(From&& from, std::size_t i)
     {
         if constexpr (std::is_const_v<std::remove_reference_t<From>>) {
             return std::as_const(from[i]);

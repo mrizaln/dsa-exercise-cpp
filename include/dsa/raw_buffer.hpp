@@ -40,7 +40,7 @@ namespace dsa
         void destroy(std::size_t offset) noexcept;
 
         auto*  data(this auto&& self) noexcept { return &self.at(0); }
-        auto&& at(this auto&& self, std::size_t pos) noexcept { return derefConst<T>(self.m_data, pos); }
+        auto&& at(this auto&& self, std::size_t pos) noexcept { return deref<T>(self.m_data, pos); }
 
         std::size_t size() const noexcept { return m_size; }
 
